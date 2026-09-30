@@ -1,0 +1,48 @@
+import Foundation
+import MetricKit
+
+/// iOS 14+；宿主把系统延迟投递的诊断 JSON 接入 DiagnosticStore.recordReport(.system, text)。
+/// 不安装 NSException/signal handler；MetricKit 的回调不能保证每次崩溃都即时产生报告。
+@available(iOS 14.0, *)
+public final class GYMetricKitRecorder: NSObject, MXMetricManagerSubscriber {
+    private let queue = DispatchQueue(label: "io.github.gycrosskit.diagnostics.metrickit", qos: .utility)
+    private let record: (String) -> Void
+    private let stateLock = NSLock()
+    private var started = false
+
+    public init(record: @escaping (String) -> Void) { self.record = record }
+
+    /// 在主线程调用；用户授权和是否启用由宿主决定。
+    public func start() {
+        precondition(Thread.isMainThread)
+        stateLock.lock()
+        guard !started else { stateLock.unlock(); return }
+        started = true
+        stateLock.unlock()
+        MXMetricManager.shared.add(self)
+    }
+
+    /// 在主线程调用；返回前等待此前提交的诊断写入，之后可关闭 store。
+    public func stop() {
+        precondition(Thread.isMainThread)
+        stateLock.lock()
+        guard started else { stateLock.unlock(); return }
+        started = false
+        stateLock.unlock()
+        MXMetricManager.shared.remove(self)
+        queue.sync {}
+    }
+
+    public func didReceive(_ payloads: [MXDiagnosticPayload]) {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        guard started else { return }
+        payloads.forEach { payload in
+            let data = payload.jsonRepresentation()
+            queue.async { [weak self] in
+                guard let self, let text = String(data: data, encoding: .utf8) else { return }
+                self.record(text)
+            }
+        }
+    }
+}
