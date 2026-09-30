@@ -2,10 +2,12 @@
 
 跨项目的私有滚动日志、诊断报告、稳定批次逐文件读取和可重试 TAR 导出。**没有网络上传、账号、用户信息采集、用户授权判断、脱敏或模拟崩溃入口。** 宿主决定是否启用、写入什么内容、如何脱敏和分享/上传；组件不会替宿主作隐私决策。
 
-远程发布候选坐标为 `com.github.gycrosskit.diagnostics:diagnostics-core:0.1.0`，使用 JitPack。
+远程坐标为 `com.github.gycrosskit.diagnostics:diagnostics-core:0.1.0`，使用 JitPack。
 发布前可在独立消费工程以 `-PdiagnosticsMavenRepo="$PWD/build/maven"` 检查 staging 产物；
 默认消费工程只查询 JitPack，不使用源码替换或 `mavenLocal`。远程发布与可用性以 [VALIDATION.md](VALIDATION.md) 的实际结果为准。
 
+
+Maven `0.1.0` 已发布：[GitHub Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.1.0)，JitPack 状态 `ok`，独立消费的Android、iOS arm64/x64 编译、iOS Simulator Framework 链接、OHOS 编译通过。 JVM 行为测试、OHOS `.so` 链接和消费 Framework 的 Swift 读取/通知 API typecheck 通过；本库无 HAR。
 
 ## 实际能力和平台
 

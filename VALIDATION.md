@@ -19,3 +19,9 @@
 本机消费者首次缺少 Android sdk.dir，补独立消费工程的忽略配置后通过。并行构建遇 16GB 内存拥挤，取消本任务排队构建后采用串行 worker1 / 1GB / no-daemon 成功；未取消其他聊天构建。
 
 远程 GitHub/JitPack 发布、独立远程 Maven 消费尚待完成。Apache-2.0 已由所有者确认；来源见 SOURCE.md。
+
+## 2026-09-30 远程验收结果
+
+Maven `0.1.0` 已发布：[GitHub Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.1.0)，JitPack 状态 `ok`，独立消费的Android、iOS arm64/x64 编译、iOS Simulator Framework 链接、OHOS 编译通过。 JVM 行为测试、OHOS `.so` 链接和消费 Framework 的 Swift 读取/通知 API typecheck 通过；本库无 HAR。
+
+本轮默认远程仓库解析，无源码 include/project 替换或 mavenLocal。Gradle 消费使用 `--rerun-tasks` 强制编译；permission、diagnostics 同时刷新依赖，其余库使用新版本首次远程解析，`--info` 留有 JitPack 下载证据。行为测试、SDK mock 与产物消费不代表真机系统页面或真实授权/支付验收。
