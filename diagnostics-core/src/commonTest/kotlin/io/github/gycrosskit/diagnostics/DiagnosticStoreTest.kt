@@ -93,6 +93,68 @@ class DiagnosticStoreTest {
         tiny.close()
     }
 
+    @Test fun streamingFilesRestartAndExplicitAcknowledgement() = inDirectory { root ->
+        var store = DiagnosticStore(root.toString(), small)
+        store.append("frozen log")
+        store.recordReport(ReportKind.CRASH, "frozen crash")
+        val original = store.prepareBatch()
+        val reader = store.openFile(original, original.files.first().id)
+        assertFails { reader.read(65537) }
+        reader.close()
+        assertFails { reader.read() }
+        assertFails { store.openFile(original, "../log_0.txt") }
+        store.close()
+        store = DiagnosticStore(root.toString(), small)
+        val restored = store.prepareBatch()
+        assertEquals(original.id, restored.id)
+        assertEquals(original.files, restored.files)
+        assertFails { store.acknowledgeBatch(original) }
+        restored.files.forEach { file ->
+            val stream = store.openFile(restored, file.id)
+            val bytes = mutableListOf<Byte>()
+            try {
+                while (true) {
+                    val chunk = stream.read(3)
+                    if (chunk.isEmpty()) break
+                    bytes.addAll(chunk.toList())
+                }
+            } finally { stream.close() }
+            assertEquals(file.size, bytes.size.toLong())
+            assertEquals(read(Path(root, "pending", file.name)), bytes.toByteArray().decodeToString())
+        }
+        // 模拟部分上传成功后重试：未确认之前完整批次仍在。
+        assertEquals(restored.files, store.prepareBatch().files)
+        store.append("later log")
+        store.acknowledgeBatch(restored)
+        assertEquals("later log\n", read(Path(root, "log_0.txt")))
+        assertFails { store.acknowledgeBatch(restored) }
+        store.close()
+    }
+
+    @Test fun reportNotificationFollowsDiskSuccessAndAllowsReentry() = inDirectory { root ->
+        val store = DiagnosticStore(root.toString(), small.copy(maxReports = 1))
+        val notified = mutableListOf<ReportKind>()
+        val recorder = ReportRecorder(store) { kind ->
+            assertEquals(1, store.pendingReportCount()) // 回调不能持有 store 锁。
+            notified += kind
+        }
+        recorder.record(ReportKind.CRASH, "stored")
+        recorder.record(ReportKind.HANG, "capacity full")
+        recorder.record(ReportKind.SYSTEM, "") // 写入失败不通知。
+        assertEquals(listOf(ReportKind.CRASH), notified)
+        recorder.close()
+        store.acknowledgeBatch(store.prepareBatch())
+        recorder.record(ReportKind.HANG, "late")
+        assertEquals(0, store.pendingReportCount())
+        lateinit var reentrant: ReportRecorder
+        reentrant = ReportRecorder(store) { reentrant.close(); error("宿主通知异常") }
+        reentrant.record(ReportKind.SYSTEM, "stored before callback closes")
+        reentrant.record(ReportKind.CRASH, "after close")
+        assertEquals(1, store.pendingReportCount())
+        store.close()
+        ReportRecorder(store) { error("closed store must not notify") }.record(ReportKind.CRASH, "write fails")
+    }
+
     @Test fun pathAndConfigValidation() {
         assertFailsWith<IllegalArgumentException> { DiagnosticStore("../other") }
         assertFailsWith<IllegalArgumentException> { DiagnosticStore("/tmp/../other") }

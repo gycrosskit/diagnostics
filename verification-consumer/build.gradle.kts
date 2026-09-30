@@ -7,7 +7,7 @@ kotlin {
     iosSimulatorArm64 { binaries.framework { baseName = "DiagnosticsConsumer" } }
     ohosArm64 { binaries.sharedLib { baseName = "DiagnosticsConsumer" } }
     sourceSets {
-        commonMain.dependencies { implementation("io.github.gycrosskit:diagnostics-core:0.1.0") }
+        commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.1.0") }
         jvmTest.dependencies { implementation(kotlin("test")) }
     }
 }

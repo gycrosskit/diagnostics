@@ -6,11 +6,21 @@ import MetricKit
 @available(iOS 14.0, *)
 public final class GYMetricKitRecorder: NSObject, MXMetricManagerSubscriber {
     private let queue = DispatchQueue(label: "io.github.gycrosskit.diagnostics.metrickit", qos: .utility)
-    private let record: (String) -> Void
+    private let record: (String) -> Bool
+    private let onReportStored: (() -> Void)?
     private let stateLock = NSLock()
     private var started = false
 
-    public init(record: @escaping (String) -> Void) { self.record = record }
+    public init(record: @escaping (String) -> Void) {
+        self.record = { text in record(text); return false }
+        self.onReportStored = nil
+    }
+
+    /// record 只在报告实际落盘后返回 true；通知不携带诊断原文。
+    public init(record: @escaping (String) -> Bool, onReportStored: @escaping () -> Void) {
+        self.record = record
+        self.onReportStored = onReportStored
+    }
 
     /// 在主线程调用；用户授权和是否启用由宿主决定。
     public func start() {
@@ -41,7 +51,7 @@ public final class GYMetricKitRecorder: NSObject, MXMetricManagerSubscriber {
             let data = payload.jsonRepresentation()
             queue.async { [weak self] in
                 guard let self, let text = String(data: data, encoding: .utf8) else { return }
-                self.record(text)
+                if self.record(text) { self.onReportStored?() }
             }
         }
     }

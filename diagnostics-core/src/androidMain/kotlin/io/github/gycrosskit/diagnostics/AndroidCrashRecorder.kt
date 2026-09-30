@@ -9,17 +9,23 @@ fun androidDiagnosticStore(context: Context, limits: DiagnosticLimits = Diagnost
     DiagnosticStore(java.io.File(context.noBackupFilesDir, "gycrosskit-diagnostics").absolutePath, limits)
 
 /** 仅记录 JVM 未捕获异常，不捕获 native signal/ANR。宿主明确创建并持有，close 撤回自己的 handler。 */
-class AndroidCrashRecorder(store: DiagnosticStore) : java.io.Closeable {
+class AndroidCrashRecorder(
+    store: DiagnosticStore,
+    onReportStored: ((ReportKind) -> Unit)? = null,
+) : java.io.Closeable {
     private val downstream = checkNotNull(Thread.getDefaultUncaughtExceptionHandler()) {
         "没有系统异常处理器，不能安装采集器"
     }.also { check(it !is RecordingHandler) { "进程已有 AndroidCrashRecorder" } }
-    private val handler = RecordingHandler(store, downstream)
+    private val reports = ReportRecorder(store, onReportStored)
+    private val handler = RecordingHandler(store, reports, downstream)
     init { Thread.setDefaultUncaughtExceptionHandler(handler) }
     override fun close() {
+        reports.close()
         if (Thread.getDefaultUncaughtExceptionHandler() === handler) Thread.setDefaultUncaughtExceptionHandler(downstream)
     }
     private class RecordingHandler(
         private val store: DiagnosticStore,
+        private val reports: ReportRecorder,
         private val downstream: Thread.UncaughtExceptionHandler,
     ) : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(thread: Thread, error: Throwable) {
@@ -37,7 +43,7 @@ class AndroidCrashRecorder(store: DiagnosticStore) : java.io.Closeable {
                 }
                 output.append("thread=${thread.name.take(256)}\n")
                 try { error.printStackTrace(PrintWriter(writer)) } catch (_: ReportFull) { output.append("\n[truncated]\n") }
-                store.recordReport(ReportKind.CRASH, output.toString())
+                reports.record(ReportKind.CRASH, output.toString())
             } catch (_: Throwable) {
                 // 采集失败仍交给安装前的系统处理器结束进程。
             } finally {

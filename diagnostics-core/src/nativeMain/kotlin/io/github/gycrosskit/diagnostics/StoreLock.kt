@@ -6,9 +6,18 @@ import kotlin.native.ref.createCleaner
 import platform.posix.*
 
 @OptIn(ExperimentalForeignApi::class, ExperimentalNativeApi::class)
-internal actual class StoreLock actual constructor() {
+internal actual class StoreLock actual constructor(recursive: Boolean) {
     private val mutex = nativeHeap.alloc<pthread_mutex_t>().also {
-        check(pthread_mutex_init(it.ptr, null) == 0)
+        memScoped {
+            val attributes = alloc<pthread_mutexattr_t>()
+            check(pthread_mutexattr_init(attributes.ptr) == 0)
+            try {
+                if (recursive) check(pthread_mutexattr_settype(attributes.ptr, PTHREAD_MUTEX_RECURSIVE) == 0)
+                check(pthread_mutex_init(it.ptr, attributes.ptr) == 0)
+            } finally {
+                pthread_mutexattr_destroy(attributes.ptr)
+            }
+        }
     }
     // 由对象生命周期回收锁，避免 close 与等待中的回调发生 use-after-free。
     private val cleaner = createCleaner(mutex.ptr) { pointer ->

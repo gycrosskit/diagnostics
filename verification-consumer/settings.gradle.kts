@@ -16,8 +16,8 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         exclusiveContent {
-            forRepository { maven { url = uri(providers.gradleProperty("diagnosticsMavenRepo").get()) } }
-            filter { includeGroup("io.github.gycrosskit") }
+            forRepository { maven { url = uri(providers.gradleProperty("diagnosticsMavenRepo").orElse("https://jitpack.io").get()) } }
+            filter { includeGroup("com.github.gycrosskit.diagnostics") }
         }
         maven { url = uri("https://maven.eazytec-cloud.com/nexus/repository/maven-public/"); content { includeVersionByRegex(".*", ".*", ".*-1\\.0\\.0") } }
         maven { url = uri("https://maven.aliyun.com/repository/google") }

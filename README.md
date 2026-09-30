@@ -1,8 +1,11 @@
-# GY CrossKit Diagnostics（本地源码交付）
+# GY CrossKit Diagnostics
 
-跨项目的私有滚动日志、诊断报告文件和可重试 TAR 导出。**没有网络上传、账号、用户信息采集、用户授权判断、脱敏或模拟崩溃入口。** 宿主决定是否启用、写入什么内容、如何脱敏和分享/上传；组件不会替宿主作隐私决策。
+跨项目的私有滚动日志、诊断报告、稳定批次逐文件读取和可重试 TAR 导出。**没有网络上传、账号、用户信息采集、用户授权判断、脱敏或模拟崩溃入口。** 宿主决定是否启用、写入什么内容、如何脱敏和分享/上传；组件不会替宿主作隐私决策。
 
-本轮创建独立本地仓库，未 commit/push、创建远程仓库、打 Tag 或发布。默认构建坐标为 `io.github.gycrosskit:diagnostics-core:0.1.0`，目前只能使用本地 staging Maven 仓库。`jitpack.yml` 和下载脚本与共用预构建模板一致；`release-checksums.txt` 为空，缺少经验证的版本 checksum 时会在联网前拒绝执行。它们只是发布准备模板；未来 JitPack group 为 `com.github.gycrosskit.diagnostics`，远程 Release、checksum、许可及消费验证完成前不可宣称该坐标可用。
+远程发布候选坐标为 `com.github.gycrosskit.diagnostics:diagnostics-core:0.1.0`，使用 JitPack。
+发布前可在独立消费工程以 `-PdiagnosticsMavenRepo="$PWD/build/maven"` 检查 staging 产物；
+默认消费工程只查询 JitPack，不使用源码替换或 `mavenLocal`。远程发布与可用性以 [VALIDATION.md](VALIDATION.md) 的实际结果为准。
+
 
 ## 实际能力和平台
 
@@ -15,7 +18,7 @@
 
 Android 24/25 的 rename 使用 `File.renameTo`，同文件系统的 Android/Linux rename 保持原子性；其他实际使用的 kotlinx-io 方法为 `java.io.File`、`FileInputStream`、`FileOutputStream`，不依赖 API 26 才有的 `java.nio.file.Files`。JVM/Native 使用 kotlinx-io 原生 atomicMove。
 
-依赖：Kotlin `2.2.21-1.0.0`（OHOS fork）、AGP `8.10.1`、`kotlinx-io-core:0.9.0-1.0.0`（包含 OHOS 变体）。不依赖 Tinylog、Ktor、Compose、Kuikly 或宿主业务模块。来源及许可状态见 [SOURCE.md](SOURCE.md)。
+依赖：Kotlin `2.2.21-1.0.0`（OHOS fork）、AGP `8.10.1`、`kotlinx-io-core:0.9.0-1.0.0`（包含 OHOS 变体）。不依赖 Tinylog、Ktor、Compose、Kuikly 或宿主业务模块。发布候选采用 Apache-2.0；来源及许可确认状态见 [SOURCE.md](SOURCE.md)。
 
 ## 初始化与导出
 
@@ -35,7 +38,7 @@ if (batch.files.isNotEmpty()) {
 }
 ```
 
-公共 API 只有 `DiagnosticStore`、`DiagnosticLimits`、`ReportKind`、文件描述、稳定批次与导出回执，平台采集器独立启用。`append` 接收已经由宿主格式化、脱敏的单行/多行文本，不隐式加设备、账号或线程元数据。
+公共 API 包含 `DiagnosticStore`、`DiagnosticLimits`、`ReportKind`、文件描述、稳定批次、流式 reader 与导出回执，平台采集器独立启用。`append` 接收已经由宿主格式化、脱敏的单行/多行文本，不隐式加设备、账号或线程元数据。
 
 Android 宿主显式保留 `val recorder = AndroidCrashRecorder(diagnostics)`；重复安装会抛错，先撤回上一采集器，安装/释放由宿主串行执行。停止时 `recorder.close()` 仅在它仍是当前默认 handler 时恢复旧 handler；与其他 crash SDK 同用必须按安装逆序释放。随后调用 `diagnostics.close()`。异常写入失败不会阻止旧系统 handler；不保证磁盘失败、OOM 或进程硬杀时落盘。
 
@@ -56,7 +59,54 @@ recorder.stop()
 
 MetricKit 不订阅常规 metrics payload，只处理 `MXDiagnosticPayload`（Crash/Hang 等系统 JSON）。本轮独立 Maven 消费者 Framework 的 NSError 导出与 Swift 回调接线类型检查已通过；真实业务宿主的生命周期接线、后台运行和真机投递仍需由宿主验证。
 
-OHOS 宿主传 `DiagnosticStore("$filesDir/gycrosskit-diagnostics")`，需要时创建并持有 `OhosCrashRecorder(store)`；关闭前先 `recorder.close()`。RemoveWatcher 失败抛错并保留句柄供重试；系统回调不能抛异常，保存失败只丢失该次事件，原有文件仍保留。采集器只保存系统投递原文，不触发崩溃、不自行访问附件或用户目录。
+OHOS 宿主传 `DiagnosticStore("$filesDir/gycrosskit-diagnostics")`，需要时创建并持有 `OhosCrashRecorder(store)`；关闭前先 `recorder.close()`。本进程只允许一次成功安装，关闭后不能重装：API 12 的 C 回调只带事件 domain，卸载不等待已取得 observer 的回调，无法可靠区分旧实例；安装失败仍可重试。RemoveWatcher 失败抛错并保留句柄供重试；系统回调不能抛异常，保存失败只丢失该次事件，原有文件仍保留。采集器只保存系统投递原文，不触发崩溃、不自行访问附件或用户目录。
+
+## 逐文件上传与落盘通知
+
+逐文件协议无需解析 TAR 或访问私有路径：
+
+```kotlin
+val batch = diagnostics.prepareBatch()
+for (file in batch.files) {
+    val reader = diagnostics.openFile(batch, file.id)
+    try {
+        while (true) {
+            val chunk = reader.read() // 默认 16 KiB，单次最多 64 KiB
+            if (chunk.isEmpty()) break
+            hostUploadChunk(batch.id, file.id, file.size, chunk)
+        }
+    } finally { reader.close() }
+}
+// 仅当整个批次全部上传成功、reader 已关闭后确认；失败/部分上传直接保留批次。
+diagnostics.acknowledgeBatch(batch)
+```
+
+`file.id` 与 `batch.id` 共同组成稳定标识，描述中不含内部路径。`openFile` 校验批次身份和完整文件集，
+reader 有界读取并检查冻结尺寸；宿主自行关闭 reader，store.close 不代替关闭独立 reader。
+重启后重新 `prepareBatch` 取得同 id/文件集，再打开文件；旧实例对象不能跨实例确认。
+`acknowledgeBatch` 只删除经校验的 pending 批次，不删除后来产生的 root 日志。
+它是宿主完成逐文件上传后的明确确认，组件不猜测上传成功；原 `exportBatch/deleteExported` TAR 校验流程保留。
+
+Android/OHOS 采集器可传 `onReportStored: (ReportKind) -> Unit`。只有原子保存成功后通知，
+容量满、写失败、close 后事件均不通知；通知只传种类，不传诊断原文。通知在文件锁外执行，
+生命周期门使用可重入锁，允许通知内读取 store 或关闭采集器；close 返回前等待已开始的通知。
+回调应立即向宿主队列提交任务，不能同步等待另一个调用 close 的线程。
+宿主通知异常不影响系统 handler/后续事件，也不会越过 OHOS C ABI。
+
+```kotlin
+val recorder = OhosCrashRecorder(diagnostics) { kind -> hostSchedulePendingUpload(kind) }
+// AndroidCrashRecorder(diagnostics) { kind -> hostSchedulePendingUpload(kind) }
+```
+
+iOS 使用 `GYMetricKitRecorder(record:onReportStored:)`，record 只在实际写入成功时返回 true；
+旧 Void record 初始化方式仍可使用。通知在采集队列上执行，不持有状态锁；宿主调度上传与隐私准入。
+
+```swift
+let recorder = GYMetricKitRecorder(record: { text in
+    do { return try store.recordReport(kind: .system, text: hostSanitize(text)) }
+    catch { return false }
+}, onReportStored: { hostSchedulePendingUpload() })
+```
 
 ## 大小、失败与生命周期
 

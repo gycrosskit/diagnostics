@@ -1,6 +1,7 @@
 package io.github.gycrosskit.diagnostics
 
 import kotlinx.io.buffered
+import kotlinx.io.Source
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.readByteArray
@@ -138,6 +139,25 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
         fs.delete(Path(pending, "batch-id"), mustExist = false)
     }
 
+    /** 逐文件读取冻结批次，不公开私有路径。调用方在上传结束或失败后必须关闭 reader。 */
+    @Throws(Exception::class)
+    fun openFile(batch: DiagnosticBatch, fileId: String): DiagnosticFileReader = lock.locked {
+        checkOpen()
+        validate(batch)
+        val file = batch.files.singleOrNull { it.id == fileId }
+            ?: throw IllegalArgumentException("文件不属于当前批次")
+        DiagnosticFileReader(fs.source(Path(pending, file.name)).buffered(), file.size)
+    }
+
+    /** 仅在整个批次全部上传成功且 reader 已关闭后调用；失败或部分成功不要确认。 */
+    @Throws(Exception::class)
+    fun acknowledgeBatch(batch: DiagnosticBatch) = lock.locked {
+        checkOpen()
+        validate(batch)
+        batch.files.forEach { fs.delete(Path(pending, it.name)) }
+        fs.delete(Path(pending, "batch-id"), mustExist = false)
+    }
+
     @Throws(Exception::class)
     fun pendingReportCount(): Int = lock.locked {
         checkOpen()
@@ -217,12 +237,40 @@ data class DiagnosticLimits @Throws(IllegalArgumentException::class) constructor
 }
 
 enum class ReportKind { CRASH, HANG, SYSTEM }
-data class DiagnosticFile(val name: String, val size: Long)
+data class DiagnosticFile(val name: String, val size: Long) {
+    /** 与批次 id 共同组成稳定标识；不含路径。 */
+    val id: String get() = name
+}
 class DiagnosticBatch internal constructor(val id: String, files: List<DiagnosticFile>, internal val owner: Any) {
     val files: List<DiagnosticFile> = files.toList()
     val totalBytes: Long get() = files.sumOf { it.size }
 }
 class DiagnosticExport internal constructor(val path: String, val batch: DiagnosticBatch, internal val owner: Any)
+
+/** 有界流式 reader；不依赖 TAR 格式，同一实例的 read/close 串行。 */
+class DiagnosticFileReader internal constructor(private val source: Source, private var remaining: Long) {
+    private val lock = StoreLock()
+    private var closed = false
+
+    @Throws(Exception::class)
+    fun read(maxBytes: Int = 16 * 1024): ByteArray = lock.locked {
+        check(!closed) { "reader 已关闭" }
+        require(maxBytes in 1..64 * 1024) { "单次读取必须在 1..65536 字节" }
+        val count = minOf(remaining, maxBytes.toLong()).toInt()
+        val bytes = source.readByteArray(count)
+        remaining -= count
+        if (remaining == 0L) check(source.exhausted()) { "冻结文件尺寸已变化，保留批次" }
+        bytes
+    }
+
+    @Throws(Exception::class)
+    fun close() = lock.locked {
+        if (!closed) {
+            closed = true
+            source.close()
+        }
+    }
+}
 
 private fun isReport(name: String) = !name.startsWith("log_")
 private fun requireAbsolute(path: String) {
@@ -239,7 +287,7 @@ internal fun boundedUtf8(text: String, maxBytes: Int): ByteArray {
     return bytes.copyOf(end) + marker
 }
 
-internal expect class StoreLock() {
+internal expect class StoreLock(recursive: Boolean = false) {
     fun <T> locked(block: () -> T): T
 }
 
