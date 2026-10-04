@@ -1,3 +1,31 @@
+# 2026-10-04 0.2.0-rc.1 正式远程验收
+
+[实现 PR #3](https://github.com/gycrosskit/diagnostics/pull/3) 已按 main 保护合并，发布提交 `88091275f5bf8190a9510d12873a4e30181ba484`。不可变 tag `0.2.0-rc.1` 与 [GitHub prerelease](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.1) 已创建；后续文档不移动标签或覆盖附件。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| JitPack | 最终 `status=ok`、`isTag=true`，commit 与发布提交一致，共 7 个模块 |
+| 正式 Maven GAV | `com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.1`，独立工程 exclusive JitPack 解析，无 staging/mavenLocal/includeBuild/project 替换 |
+| Android/JVM 消费者测试 | Android 2 个公开 `BoundedReportWriter` Crash 格式/UTF-8/marker 测试、JVM 1 个测试，均 0 failures/errors |
+| 多平台消费 | Android、iOS arm64/simulator arm64/x64、OHOS arm64 编译；Simulator Framework 与 OHOS so 链接通过 |
+| Git tag Swift Package | 远程 exact `0.2.0-rc.1` 解析到发布提交，iOS arm64 device / arm64 simulator SDK 编译通过 |
+| Git tag Pod | `pod spec lint` 实际下载 podspec 的 Git/tag 并构建消费 App，通过；非本地 path/lib lint |
+| Swift/KMP 联合契约 | 远程 SwiftPM module + 正式 Maven consumer Framework typecheck 通过，兼容 recorder/NSError 读取与通知 API 可消费 |
+| 远程字节 | 7 个下载二进制与 staging 逐字节相同；9 个 variant 文件引用 size/SHA 和四种 Native target 齐全 |
+
+Gradle 使用正常 `/Users/guoyang/.gradle`；本轮独立新工程刷新正式 JitPack，完整矩阵 `BUILD SUCCESSFUL in 1m 5s`。初次轻量 iOS arm64 文件下载发生连接 reset，有界重试后字节/hash 检查通过。
+
+JitPack 响应把根 component identity 改为 `com.github.gycrosskit:diagnostics`；组织 checker 对原始 staging/归档的组名断言不能直接套用该下载树。本轮保留服务器响应，按真实 size/hash/平台变体与实际 Gradle 解析、编译、链接验证，没有修改远程 metadata。
+
+GitHub Release asset digest 已核对：
+
+- `diagnostics-maven.tar.gz`：`ad6e60c95c41f294c328990368003e3be11cf826c63f7f622422045a36cf521f`。
+- `diagnostics-native.tar.gz`：`fb98f3ade6d5266611c27014acae65ca505a555adeb2e2b7999bacc69fb027fe`。
+
+两包无 AppleDouble/xattrs，旧 0.1.0 checksum 保留。JitPack 安装日志确认新 Maven archive checksum OK。实际 Android ANR、iOS NSException/MetricKit 最终系统投递、后台生命周期及业务上传/通知仍未真机验收；SDK 编译与 mock 测试不证明最终递送。
+
+以下保留实现阶段的历史验证快照。
+
 # 验收记录（2026-09-30）
 
 任务分支 `codex/diagnostics-contract-fix`；原始基线 `31b48da`。修复 Issue #10，并准备 JitPack 0.1.0。除用户授权的原始初始提交外，尚未提交修复或远程发布。
