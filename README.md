@@ -2,7 +2,7 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前 Maven 发布候选 **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档与新版本远程消费正在执行；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版保持可安装回退；本库无 HAR。见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.2)。
+当前 Maven 发布候选 **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档、全变体 HTTP 与新版本真实远程消费已通过；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版历史记录和不可变资产保留；本库无 HAR。见 [当前 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.3)。
 
 ## 支持范围
 
@@ -87,12 +87,16 @@ if (batch.files.isNotEmpty()) {
 | --- | --- |
 | Maven / Swift Package / Git Pod | `0.2.0-rc.3` / `0.2.0-rc.1` / `0.2.0-rc.1` |
 
-可选 diagnostics-dingtalk 与 core Maven 同版本；没有 HAR。候选尚待新版本远程验收，设备行为不由编译/链接推断。
+可选 diagnostics-dingtalk 与 core Maven 同版本；没有 HAR。候选已完成发布与新版本远程消费；设备行为不由编译/链接推断。
 
-## 0.2.0-rc.3 本地发布制品校验
+## 0.2.0-rc.3 发布与远程验收
 
 Fresh macOS staging 与归档解包复验均通过，全部 13 个 publication 的声明文件四类哈希、四类 sidecar、Apache-2.0 POM 及同名 available-at 目标身份均已校验。Maven 归档 SHA-256：`9562ab51b35d2d66f3edbf557caa7fa77f7d3f574d98a0b760bddee948928bba`。
 
 Maven `0.2.0-rc.3`；未变 Native Swift Package / Git Pod 保留 `0.2.0-rc.1`。
 
-新版本标签 / Release / JitPack 全变体下载与真实远程消费者仍待完成；本地验证不代替发布或设备验收。
+不可变标签与 prerelease 已发布，所有 Release 附件重下载 SHA 与清单匹配。JitPack 新版本最终 ok/isTag/public 且 commit 匹配 tag，全部 13 module、17 个文件引用、15 个 available-at 的 HTTP/四类声明 hash/身份验证通过。新版真实远程 consumer 已通过；设备与业务 SDK 动作未验。
+
+精确 JitPack rc.3 新目录消费者包含 core 与可选 dingtalk：42 tasks / 51s，Android AAR、JVM 1 项及 Android 2 项消费测试、iOS 三架构编译和 simulator Framework、OHOS core aarch64 .so；全部消费测试通过。未变 Swift Package/Git Pod rc.1 沿用已验渠道。本轮不发送真实通知。
+
+实际日志与 JSON 账单位于 `build/remote-library-review/`。真实设备、业务账号登录/聊天/直播/PiP、权限 UI、真实 Bug/通知发送未执行。
