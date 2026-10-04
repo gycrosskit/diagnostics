@@ -13,16 +13,21 @@ import kotlin.time.ExperimentalTime
 
 /** 私有滚动日志和稳定诊断批次。一个目录只允许一个进程中的一个实例持有。 */
 @OptIn(ExperimentalTime::class)
-class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: String, val limits: DiagnosticLimits = DiagnosticLimits()) {
+class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: String, val limits: DiagnosticLimits = DiagnosticLimits(), legacySources: List<LegacyDiagnosticSource> = emptyList()) {
     private val lock = StoreLock()
     private val fs = SystemFileSystem
     private val root: Path
+    private val legacySources = legacySources.map { source ->
+        val path = DiagnosticFiles.checkedPath(source.directory)
+        source.copy(directory = if (fs.exists(path)) fs.resolve(path).toString() else path.toString())
+    }
     private val pending: Path
     private val owner = Any()
     private var closed = false
 
     init {
         requireAbsolute(rootDirectory)
+        legacySources.forEach { requireAbsolute(it.directory); require(it.prefixes.isNotEmpty() && it.prefixes.all(String::isNotEmpty)) }
         fs.createDirectories(Path(rootDirectory))
         root = fs.resolve(Path(rootDirectory))
         pending = Path(root, "pending")
@@ -63,6 +68,10 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
     fun prepareBatch(): DiagnosticBatch = lock.locked {
         checkOpen()
         var frozen = files(pending)
+        if (frozen.isEmpty() && legacySources.isNotEmpty()) {
+            importLegacyBatch()
+            frozen = files(pending)
+        }
         if (frozen.isEmpty()) {
             val candidates = files(root).sortedBy { !isReport(it.name) }
             val selected = mutableListOf<Path>()
@@ -135,8 +144,7 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
         check(export.owner === owner) { "导出回执来自其他实例" }
         validate(export.batch)
         check(matchesArchive(export)) { "归档副本缺失或已变化，保留原批次" }
-        export.batch.files.forEach { fs.delete(Path(pending, it.name)) }
-        fs.delete(Path(pending, "batch-id"), mustExist = false)
+        acknowledgeLocked(export.batch)
     }
 
     /** 逐文件读取冻结批次，不公开私有路径。调用方在上传结束或失败后必须关闭 reader。 */
@@ -154,14 +162,110 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
     fun acknowledgeBatch(batch: DiagnosticBatch) = lock.locked {
         checkOpen()
         validate(batch)
-        batch.files.forEach { fs.delete(Path(pending, it.name)) }
-        fs.delete(Path(pending, "batch-id"), mustExist = false)
+        acknowledgeLocked(batch)
     }
 
     @Throws(Exception::class)
     fun pendingReportCount(): Int = lock.locked {
         checkOpen()
         (files(root) + files(pending)).count { isReport(it.name) }
+    }
+
+    /** 不冻结、不切卷；同名活动/冻结文件用完整路径区分。 */
+    @Throws(Exception::class)
+    fun currentFiles(): List<DiagnosticSnapshotFile> = lock.locked {
+        checkOpen()
+        (files(root) + files(pending)).map { DiagnosticSnapshotFile(it.toString(), it.name, size(it)) } +
+            legacySources.flatMap { DiagnosticFiles.list(it.directory, it.prefixes) }
+    }
+
+    @Throws(Exception::class)
+    fun openSnapshot(file: DiagnosticSnapshotFile): DiagnosticFileReader = lock.locked {
+        checkOpen()
+        check((files(root) + files(pending)).any { it.toString() == file.path && size(it) >= file.size } ||
+            legacySources.any { DiagnosticFiles.list(it.directory, it.prefixes).any { item -> item.path == file.path && item.size >= file.size } })
+        DiagnosticFiles.openSnapshot(file)
+    }
+
+    @Throws(Exception::class)
+    fun readTail(file: DiagnosticSnapshotFile, maxBytes: Int, dropPartialFirstLine: Boolean = false): ByteArray = lock.locked {
+        checkOpen()
+        check((files(root) + files(pending)).any { it.toString() == file.path && size(it) >= file.size } ||
+            legacySources.any { DiagnosticFiles.list(it.directory, it.prefixes).any { item -> item.path == file.path && item.size >= file.size } })
+        DiagnosticFiles.readTail(file, maxBytes, dropPartialFirstLine)
+    }
+
+    private fun acknowledgeLocked(batch: DiagnosticBatch) {
+        val origins = Path(pending, "legacy-origins")
+        if (fs.exists(origins)) {
+            fs.source(origins).buffered().use { it.readString() }.lineSequence().filter { it.isNotEmpty() }.forEach { line ->
+                val name = line.substringBefore('\t')
+                check(name.startsWith("legacy_") && '/' !in name && name != "..") { "Invalid legacy manifest" }
+                if (batch.files.none { it.name == name }) return@forEach
+                val original = line.substringAfter('\t', "")
+                // 来源路径必须仍属于本次宿主明确配置，不能信任旧目录里的任意 manifest。
+                check(legacySources.any { source -> original.startsWith("${source.directory}/") &&
+                    original.removePrefix("${source.directory}/").let { '/' !in it && source.prefixes.any(it::startsWith) } })
+                if (DiagnosticFiles.sameContents(original, Path(pending, name).toString())) fs.delete(Path(original))
+            }
+        }
+        batch.files.forEach { fs.delete(Path(pending, it.name)) }
+        fs.delete(origins, mustExist = false)
+        fs.delete(Path(pending, "batch-id"), mustExist = false)
+        legacySources.filter { it.frozen }.forEach { source ->
+            if (DiagnosticFiles.list(source.directory, source.prefixes).isEmpty())
+                fs.delete(Path(source.directory, "batch-id"), mustExist = false)
+        }
+    }
+
+    /** 仅迁移宿主明确输入的旧目录；复制成功后原子公开到现有 pending，失败和取消不删除旧文件。 */
+    private fun importLegacyBatch() {
+        val frozen = legacySources.filter { it.frozen }.firstOrNull { DiagnosticFiles.list(it.directory, it.prefixes).isNotEmpty() }
+        val sources = if (frozen != null) listOf(frozen) else legacySources.filter { !it.frozen }
+        val candidates = sources.flatMap { source -> DiagnosticFiles.list(source.directory, source.prefixes).map { source to it } }
+        if (candidates.isEmpty()) return
+        val selected = mutableListOf<Pair<LegacyDiagnosticSource, DiagnosticSnapshotFile>>()
+        var total = 0L
+        for (candidate in candidates) if (selected.size < limits.maxBatchFiles && candidate.second.size <= limits.maxBatchBytes - total) {
+            selected += candidate; total += candidate.second.size
+        }
+        check(selected.isNotEmpty() && (frozen == null || selected.size == candidates.size)) { "Legacy batch exceeds capacity; sources preserved" }
+        val staging = Path(root, "legacy-import")
+        if (fs.exists(staging)) {
+            check(fs.resolve(staging) == staging)
+            fs.list(staging).forEach { fs.delete(it) }; fs.delete(staging)
+        }
+        fs.createDirectories(staging)
+        try {
+            val origins = StringBuilder()
+            selected.forEachIndexed { index, (_, file) ->
+                val name = "legacy_${index}_${file.name}"
+                require(name.length < 100 && '\t' !in file.path)
+                DiagnosticFiles.openSnapshot(file).let { reader ->
+                    try { fs.sink(Path(staging, name)).buffered().use { output ->
+                        while (true) { val bytes = reader.read(); if (bytes.isEmpty()) break; output.write(bytes) }
+                    } } finally { reader.close() }
+                }
+                origins.append(name).append('\t').append(file.path).append('\n')
+            }
+            fs.sink(Path(staging, "legacy-origins")).buffered().use { it.writeString(origins.toString()) }
+            val historicalId = frozen?.let { source ->
+                val marker = Path(source.directory, "batch-id")
+                if (fs.exists(marker) && size(marker) in 1..1024 && fs.resolve(marker) == marker)
+                    fs.source(marker).buffered().use { it.readString() }.takeIf { it.isNotBlank() && it.matches(Regex("[a-zA-Z0-9_-]+")) }
+                else null
+            }
+            fs.sink(Path(staging, "batch-id")).buffered().use { it.writeString(historicalId ?: newId()) }
+            // pending 尚无文件；只移除组件自己空目录和旧 marker，绝不触碰旧目录。
+            fs.delete(Path(pending, "batch-id"), mustExist = false)
+            fs.delete(Path(pending, "legacy-origins"), mustExist = false)
+            fs.delete(pending)
+            platformMove(staging, pending)
+        } catch (failure: Throwable) {
+            runCatching { if (fs.exists(staging)) { fs.list(staging).forEach { fs.delete(it) }; fs.delete(staging) } }
+            if (!fs.exists(pending)) fs.createDirectories(pending)
+            throw failure
+        }
     }
 
     /** 没有后台队列或打开文件；close 后拒绝调用。停止平台采集器后再关闭实例。 */
@@ -205,7 +309,7 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
 
     private fun files(directory: Path): List<Path> = fs.list(directory).filter {
         val validName = it.name.matches(Regex("log_[0-9]+\\.txt|(?:crash|hang|system)_[a-f0-9]+\\.txt"))
-        validName && fs.metadataOrNull(it)?.isRegularFile == true && size(it) > 0 && fs.resolve(it) == it
+        (validName || (it.name.startsWith("legacy_") && directory == pending)) && fs.metadataOrNull(it)?.isRegularFile == true && size(it) > 0 && fs.resolve(it) == it
     }.sortedBy { it.name }
     private fun logPath(index: Int) = Path(root, "log_$index.txt")
     private fun size(path: Path): Long = fs.metadataOrNull(path)?.size ?: 0
@@ -248,7 +352,7 @@ class DiagnosticBatch internal constructor(val id: String, files: List<Diagnosti
 class DiagnosticExport internal constructor(val path: String, val batch: DiagnosticBatch, internal val owner: Any)
 
 /** 有界流式 reader；不依赖 TAR 格式，同一实例的 read/close 串行。 */
-class DiagnosticFileReader internal constructor(private val source: Source, private var remaining: Long) {
+class DiagnosticFileReader internal constructor(private val source: Source, private var remaining: Long, private val exactLength: Boolean = true) {
     private val lock = StoreLock()
     private var closed = false
 
@@ -259,7 +363,7 @@ class DiagnosticFileReader internal constructor(private val source: Source, priv
         val count = minOf(remaining, maxBytes.toLong()).toInt()
         val bytes = source.readByteArray(count)
         remaining -= count
-        if (remaining == 0L) check(source.exhausted()) { "冻结文件尺寸已变化，保留批次" }
+        if (remaining == 0L && exactLength) check(source.exhausted()) { "冻结文件尺寸已变化，保留批次" }
         bytes
     }
 
@@ -272,7 +376,9 @@ class DiagnosticFileReader internal constructor(private val source: Source, priv
     }
 }
 
-private fun isReport(name: String) = !name.startsWith("log_")
+private fun isReport(name: String) = if (name.startsWith("legacy_"))
+    name.substringAfter('_').substringAfter('_').let { it.startsWith("crash_") || it.startsWith("hang_") || it.startsWith("system_") || it.startsWith("anr_") }
+else !name.startsWith("log_")
 private fun requireAbsolute(path: String) {
     require(path.startsWith('/') && path.split('/').none { it == ".." }) { "需要无父目录跳转的绝对路径" }
 }

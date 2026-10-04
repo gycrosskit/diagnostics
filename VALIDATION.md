@@ -1,3 +1,23 @@
+# 2026-10-04 M01–M05 未发布候选本地验收
+
+当前候选在 `codex/remote-dependency-closure` 独占 Worktree 实现；以下验证不属于旧 `0.2.0-rc.1` 发布，也不代表远程坐标已经更新。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| core JVM | 19 tests，0 failures/errors；旧冻结 id/重启/全批 ack、修改原件保留、容量失败、active/frozen 同名 ZIP、尾读、SHA-256、writer flush/timeout/interruption、Throwable Unicode/cause/suppressed、网络并发 |
+| core Android | 18 tests，0 failures/errors；包括系统 handler/落盘+flush 双失败仍转交、重复安装、原 ANR 契约 |
+| core iOS Simulator | 10 tests，0 failures/errors；包含五种 MetricKit 数组、NSException、畸形/嵌套/有界解析与 SHA-256 向量 |
+| dingtalk JVM/Android/iOS Simulator | 各 4 tests，0 failures/errors；固定签名、官方 endpoint 拒绝、HTTP/协议失败、响应上限、redirect、取消、关闭；全部 MockEngine，未发真实通知 |
+| 多平台编译 | core Android/iOS arm64/simulator arm64/x64/OHOS arm64；dingtalk Android/JVM/iOS arm64/simulator arm64/x64 均成功 |
+| staging | `publishAllPublicationsToStagingRepository` 成功；metadata 正规化和 `verification/check-maven.py` 核验全部 **13 modules**，两份 Android AAR、core7+dingtalk6 变体引用/size/SHA 齐全 |
+| 独立 staging 消费 | `verification-consumer` exclusive 仓库，无 project/includeBuild/mavenLocal；`-PdiagnosticsClosure=true` 消费新 API与可选渠道，JVM1/Android2 tests、iOS arm64/simulator与OHOS编译成功；显式默认层级保留 iOS 新 API 真实编译 |
+
+日志在 Worktree 忽略目录 `build/closure/`：`jvm-android-first.log`、`jvm-android.log`、`dingtalk-jvm-android.log`、`native-compile.log`、`native-test.log`、`staging-all.log`、`consumer-staging.log`。
+
+首次 JVM 测试发现 macOS `/var` → `/private/var` 祖先目录别名误判，已修复并重跑通过，源文件符号链接仍拒绝。可选渠道首次 offline 解析失败源于 Nexus 原 regex 未包含 Ktor 的 `-1.1.0-04` 后缀，现仅扩展既有 fork 后缀，正常解析后离线编译/测试通过。没有改依赖版本：均与宿主 catalog 一致。staging 检查器曾错误按 component 根 identity 区分平台模块，现按实际 Maven artifact 目录检查；独立 consumer 初次自定义 sourceSet 导致 iOS 层级未连接，已显式 `applyDefaultHierarchyTemplate()` 后重跑通过。
+
+未执行：候选发布/PR/tag/Release/JitPack 正式远程消费、真实宿主旧主体删除后的设备行为、真实 NSException/MetricKit 投递、真实钉钉发送。Swift 采集源码未修改；既有 Swift Package/Pod 验证不能代替本候选 Maven 新 API 验证。root 后续发布归档须保留全部13modules且重新校验不可变标签版本。
+
 # 2026-10-04 0.2.0-rc.1 正式远程验收
 
 [实现 PR #3](https://github.com/gycrosskit/diagnostics/pull/3) 已按 main 保护合并，发布提交 `88091275f5bf8190a9510d12873a4e30181ba484`。不可变 tag `0.2.0-rc.1` 与 [GitHub prerelease](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.1) 已创建；后续文档不移动标签或覆盖附件。
@@ -76,3 +96,9 @@ Maven `0.1.0` 已发布：[GitHub Release](https://github.com/gycrosskit/diagnos
 本地产物在 `build/releases/0.2.0-rc.1/`：`diagnostics-maven.tar.gz`、`diagnostics-native.tar.gz` 与 `SHA256SUMS`。Maven 包来自本地 staging，Native 包是完整 Package/Pod 源码；两包均检查无 AppleDouble/xattrs。旧 `release-checksums.txt` 保留；发布准备登记本轮经检查的 Maven SHA-256。
 
 尚未执行真实 Android ANR/进程退出 trace、iOS NSException/MetricKit 最终 crash/hang 递送、后台 lifecycle、宿主隐私准入/通知/上传及远程标签下载验收。Swift device SDK 编译不等于真机递送。ANR close 同步 drain，系统 trace I/O 无期限，宿主须后台调用；Swift 采集所有权强持有实例，宿主必须显式 stop。
+
+## root 发布准备 0.2.0-rc.2
+
+新增可选 diagnostics-dingtalk 与 core 合计 13 Maven module（core7/channel6）；同版全平台 staging 再构建与 Android crash callback 旧位置参数兼容通过编译/测试。归档正规化后全部文件引用/大小/SHA 检查通过，SHA256=22ad4fca03094f34208dc7b626dc7724db222cd2e056bd9cb988b64696230461。旧版标签不覆盖；待 GitHub/JitPack 精确发布后另核真正远程消费。
+
+最终源码复核修复 export 临时目标碰撞和 writer 写入恢复：21 项 JVM 测试通过；完整 13 module 重新 staging、metadata/实体文件 SHA 校验通过。验收用消费者版本改为可指定候选 rc.2，远程结果另记。
