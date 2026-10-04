@@ -88,3 +88,11 @@ if (batch.files.isNotEmpty()) {
 | Maven / Swift Package / Git Pod | `0.2.0-rc.3` / `0.2.0-rc.1` / `0.2.0-rc.1` |
 
 可选 diagnostics-dingtalk 与 core Maven 同版本；没有 HAR。候选尚待新版本远程验收，设备行为不由编译/链接推断。
+
+## 0.2.0-rc.3 本地发布制品校验
+
+Fresh macOS staging 与归档解包复验均通过，全部 13 个 publication 的声明文件四类哈希、四类 sidecar、Apache-2.0 POM 及同名 available-at 目标身份均已校验。Maven 归档 SHA-256：`9562ab51b35d2d66f3edbf557caa7fa77f7d3f574d98a0b760bddee948928bba`。
+
+Maven `0.2.0-rc.3`；未变 Native Swift Package / Git Pod 保留 `0.2.0-rc.1`。
+
+新版本标签 / Release / JitPack 全变体下载与真实远程消费者仍待完成；本地验证不代替发布或设备验收。
