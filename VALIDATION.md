@@ -110,3 +110,15 @@ Maven `0.1.0` 已发布：[GitHub Release](https://github.com/gycrosskit/diagnos
 PR #5合并/tag指向cd7d0d96569fca4622d0b6539c9f16a132092e94，JitPack最终ok/13modules/immutable tag。Release Maven重新下载SHA=22ad4fca03094f34208dc7b626dc7724db222cd2e056bd9cb988b64696230461一致。
 
 独立verification-consumer使用默认JitPack独占group，开启diagnosticsClosure/候选0.2.0-rc.2：JVM/Android共3项消费者测试、Android公共API、iOS arm64/x64编译、Simulator Framework和OHOS shared.so最终链接全部通过（BUILD SUCCESSFUL 1m3s）。core与可选DingTalk真实远程变体消费，不使用includeBuild/project/mavenLocal/临时Maven替换。日志位于忽略build/closure/remote-consumer.log。没有真实通知发送/上传或设备系统采集验收。
+
+## 0.2.0-rc.3 新版本真实远程验收
+
+精确 JitPack rc.3 新目录消费者包含 core 与可选 dingtalk：42 tasks / 51s，Android AAR、JVM 1 项及 Android 2 项消费测试、iOS 三架构编译和 simulator Framework、OHOS core aarch64 .so；全部消费测试通过。未变 Swift Package/Git Pod rc.1 沿用已验渠道。本轮不发送真实通知。
+
+Release 所有资产重新下载，SHA/大小/清单与候选匹配；JitPack 最终 ok/isTag/public，commit 精确匹配 tag 5d7a91458a06f22350ac3175f148616fc28eb1a7。全部 13 module、17 声明 file refs、15 available-at 的实际 HTTP/身份/四类 hash 校验通过，全部选中平台 artifact 字节与 Gradle cache 一致。
+
+兼容矩阵：Maven `0.2.0-rc.3`；未变 Native Swift Package / Git Pod 保留 `0.2.0-rc.1`。
+
+日志及 JSON 位于 `build/remote-library-review/`，不使用旧候选结果代替新版本消费。设备与业务 SDK 操作未执行；main 没有配置 required CI checks，不声称 GitHub CI 通过。
+
+本轮 OHOS generated api.cpp 的 6 条 return-type 警告保留于 remote log。旧候选历史检查未包含本轮完整 strict POM/sidecar 规则；新 rc.3 13 publication 已全部补标准 Apache POM 许可证并通过最新权威 checker，旧 tag/资产不覆盖。
