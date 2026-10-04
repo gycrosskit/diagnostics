@@ -2,7 +2,7 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-本次原生采集预发布版本为 **0.2.0-rc.1**：Android ANR 与独立 `GYDiagnosticsNative` Swift Package/Pod。Maven、Swift Package 与 Pod 使用同一不可变 Git 标签；发布状态见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.1)，实际验收见 [VALIDATION](VALIDATION.md)。既有 0.1.0 保持可用；无 HAR。
+当前已发布原生采集预发布版本 **0.2.0-rc.1**：Android ANR 与独立 `GYDiagnosticsNative` Swift Package/Pod。Maven、Swift Package 与 Pod 使用同一不可变 Git 标签；JitPack `status=ok`，正式远程 Android/iOS/OHOS 消费、Swift Package 两种 iOS SDK 与 Git tag Pod spec lint 已通过。发布信息见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.1)，实际验收见 [VALIDATION](VALIDATION.md)。既有 0.1.0 保持可用；无 HAR。
 
 ## 支持范围
 
