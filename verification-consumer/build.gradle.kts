@@ -13,13 +13,13 @@ kotlin {
             val notificationMain by creating {
                 dependsOn(commonMain.get())
                 kotlin.srcDir("src/closureNotificationMain/kotlin")
-                dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-dingtalk:${providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.1").get()}") }
+                dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-dingtalk:${providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.2").get()}") }
             }
             androidMain.get().dependsOn(notificationMain)
             jvmMain.get().dependsOn(notificationMain)
             iosMain.get().dependsOn(notificationMain)
         }
-        commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-core:${providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.1").get()}") }
+        commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-core:${providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.2").get()}") }
         jvmTest.dependencies { implementation(kotlin("test")) }
         androidUnitTest.dependencies { implementation(kotlin("test")) }
     }

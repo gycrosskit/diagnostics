@@ -26,7 +26,7 @@ object DiagnosticFiles {
             .filter { it.size > 0 }.sortedBy { it.name }
     }
 
-    /** 逐块跳过前文，不分配整个文件；超限首行丢弃，避免 UTF-8 半字符进入摘要。 */
+    /** 直接 seek 到尾部，不分配整个文件；超限首行丢弃，避免 UTF-8 半字符进入摘要。 */
     @Throws(Exception::class)
     fun readTail(file: DiagnosticSnapshotFile, maxBytes: Int, dropPartialFirstLine: Boolean = false): ByteArray {
         require(maxBytes in 1..1024 * 1024)
@@ -80,6 +80,7 @@ object DiagnosticFiles {
         require(!fs.exists(target)) { "Destination already exists" }
         val inputs = mutableListOf<Pair<DiagnosticSnapshotFile, Source>>()
         val temporary = Path("$target.tmp")
+        require(!fs.exists(temporary)) { "Temporary destination already exists" }
         try {
             files.forEach { inputs += it to open(it) }
             fs.sink(temporary).buffered().use { output ->

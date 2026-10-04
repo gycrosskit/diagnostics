@@ -15,6 +15,7 @@ fun exportDiagnosticZip(destination: String, files: List<DiagnosticZipFile>, tex
     val target = File(DiagnosticFiles.checkedPath(destination).toString())
     require(!target.exists() && files.none { File(it.file.path).canonicalFile == target.canonicalFile })
     val temporary = File("$destination.tmp")
+    require(!temporary.exists()) { "Temporary destination already exists" }
     val inputs = mutableListOf<Pair<DiagnosticZipFile, DiagnosticFileReader>>()
     try {
         files.forEach { inputs += it to DiagnosticFiles.openSnapshot(it.file) }

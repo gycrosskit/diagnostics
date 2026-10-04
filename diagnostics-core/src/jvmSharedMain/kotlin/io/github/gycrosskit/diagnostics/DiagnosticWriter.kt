@@ -26,7 +26,7 @@ class DiagnosticWriter(private val store: DiagnosticStore, capacity: Int = 1024)
 
     fun append(line: String) {
         queue.execute {
-            try { store.append(line) } catch (error: Throwable) { failure = error }
+            try { store.append(line); failure = null } catch (error: Throwable) { failure = error }
         }
     }
 

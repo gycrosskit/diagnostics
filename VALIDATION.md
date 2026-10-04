@@ -99,4 +99,6 @@ Maven `0.1.0` 已发布：[GitHub Release](https://github.com/gycrosskit/diagnos
 
 ## root 发布准备 0.2.0-rc.2
 
-新增可选 diagnostics-dingtalk 与 core 合计 13 Maven module（core7/channel6）；同版全平台 staging 再构建与 Android crash callback 旧位置参数兼容通过编译/测试。归档正规化后全部文件引用/大小/SHA 检查通过，SHA256=551974183d71af76b07e2f5a247de35816b967e1c5405ff732c4f718bdb46a63。旧版标签不覆盖；待 GitHub/JitPack 精确发布后另核真正远程消费。
+新增可选 diagnostics-dingtalk 与 core 合计 13 Maven module（core7/channel6）；同版全平台 staging 再构建与 Android crash callback 旧位置参数兼容通过编译/测试。归档正规化后全部文件引用/大小/SHA 检查通过，SHA256=22ad4fca03094f34208dc7b626dc7724db222cd2e056bd9cb988b64696230461。旧版标签不覆盖；待 GitHub/JitPack 精确发布后另核真正远程消费。
+
+最终源码复核修复 export 临时目标碰撞和 writer 写入恢复：21 项 JVM 测试通过；完整 13 module 重新 staging、metadata/实体文件 SHA 校验通过。验收用消费者版本改为可指定候选 rc.2，远程结果另记。

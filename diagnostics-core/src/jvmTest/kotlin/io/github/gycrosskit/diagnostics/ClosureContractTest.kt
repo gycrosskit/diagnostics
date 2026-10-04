@@ -8,6 +8,38 @@ import java.util.zip.ZipFile
 import kotlin.test.*
 
 class ClosureContractTest {
+    @Test fun writerCanRecoverAfterStorageBecomesWritableAgain() {
+        val directory = Files.createTempDirectory("diagnostics-writer-recovery").toFile()
+        val store = DiagnosticStore(directory.path)
+        val writer = DiagnosticWriter(store)
+        try {
+            directory.deleteRecursively()
+            writer.append("blocked")
+            assertFailsWith<java.io.IOException> { writer.flush() }
+            directory.mkdirs()
+            writer.append("recovered")
+            writer.flush()
+            assertEquals("recovered\n", File(directory, "log_0.txt").readText())
+        } finally { writer.close(); store.close(); directory.deleteRecursively() }
+    }
+
+    @Test fun exportNeverOverwritesAnExistingTemporarySource() {
+        val directory = Files.createTempDirectory("diagnostics-export-collision").toFile()
+        try {
+            val target = File(directory, "export.zip")
+            val source = File(directory, "export.zip.tmp").apply { writeText("original evidence") }
+            val snapshot = DiagnosticFiles.snapshot(source.path)
+            assertFailsWith<IllegalArgumentException> {
+                exportDiagnosticZip(target.path, listOf(DiagnosticZipFile("evidence.txt", snapshot)))
+            }
+            assertFailsWith<IllegalArgumentException> {
+                DiagnosticFiles.exportTextSnapshot(listOf(snapshot), target.path)
+            }
+            assertEquals("original evidence", source.readText())
+            assertFalse(target.exists())
+        } finally { directory.deleteRecursively() }
+    }
+
     @Test fun legacyFrozenBatchSurvivesRestartAndOnlyFullAckDeletesMatchingOriginals() {
         val directory = Files.createTempDirectory("diagnostics-legacy").toFile()
         val legacy = File(directory, "old-pending").apply { mkdirs() }
