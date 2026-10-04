@@ -23,6 +23,51 @@ class ClosureContractTest {
         } finally { writer.close(); store.close(); directory.deleteRecursively() }
     }
 
+    @Test fun laterSuccessCannotEraseAnUnreportedWriteFailure() {
+        val directory = Files.createTempDirectory("diagnostics-unreported-failure").toFile()
+        val store = DiagnosticStore(directory.path)
+        val writer = DiagnosticWriter(store)
+        try {
+            directory.deleteRecursively()
+            writer.append("failed")
+            // 只等待 append 执行并恢复目录；不能调用 flush 提前消费失败证据。
+            val field = DiagnosticWriter::class.java.getDeclaredField("queue").apply { isAccessible = true }
+            val queue = field.get(writer) as java.util.concurrent.ExecutorService
+            queue.submit { directory.mkdirs() }.get()
+            writer.append("success")
+            assertFailsWith<java.io.IOException> { writer.flush() }
+            assertFailsWith<java.io.IOException> { writer.flush() }
+            writer.append("after reported failure")
+            writer.flush()
+            assertEquals("success\nafter reported failure\n", File(directory, "log_0.txt").readText())
+        } finally { writer.close(); store.close(); directory.deleteRecursively() }
+    }
+
+    @Test fun timedOutBarrierCannotConsumeAnUnreportedWriteFailure() {
+        val directory = Files.createTempDirectory("diagnostics-late-barrier").toFile()
+        val store = DiagnosticStore(directory.path)
+        val writer = DiagnosticWriter(store)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        try {
+            directory.deleteRecursively()
+            writer.append("failed")
+            val field = DiagnosticWriter::class.java.getDeclaredField("queue").apply { isAccessible = true }
+            val queue = field.get(writer) as java.util.concurrent.ExecutorService
+            queue.execute { started.countDown(); release.await() }
+            assertTrue(started.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertFailsWith<java.io.IOException> { writer.flush(10) }
+            release.countDown()
+            // 等待超时 barrier 迟到执行，但它没有把失败交付给调用方。
+            queue.submit { directory.mkdirs() }.get(5, java.util.concurrent.TimeUnit.SECONDS)
+            writer.append("success")
+            assertFailsWith<java.io.IOException> { writer.flush() }
+            writer.append("after reported failure")
+            writer.flush()
+            assertEquals("success\nafter reported failure\n", File(directory, "log_0.txt").readText())
+        } finally { release.countDown(); writer.close(); store.close(); directory.deleteRecursively() }
+    }
+
     @Test fun exportNeverOverwritesAnExistingTemporarySource() {
         val directory = Files.createTempDirectory("diagnostics-export-collision").toFile()
         try {
