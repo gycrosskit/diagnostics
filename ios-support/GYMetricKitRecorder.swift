@@ -27,6 +27,7 @@ public final class GYMetricKitRecorder: NSObject, MXMetricManagerSubscriber {
         precondition(Thread.isMainThread)
         stateLock.lock()
         guard !started else { stateLock.unlock(); return }
+        MetricKitOwnership.claim(self)
         started = true
         stateLock.unlock()
         MXMetricManager.shared.add(self)
@@ -41,6 +42,7 @@ public final class GYMetricKitRecorder: NSObject, MXMetricManagerSubscriber {
         stateLock.unlock()
         MXMetricManager.shared.remove(self)
         queue.sync {}
+        MetricKitOwnership.release(self)
     }
 
     public func didReceive(_ payloads: [MXDiagnosticPayload]) {
