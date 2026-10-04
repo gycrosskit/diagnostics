@@ -102,3 +102,11 @@ Maven `0.1.0` 已发布：[GitHub Release](https://github.com/gycrosskit/diagnos
 新增可选 diagnostics-dingtalk 与 core 合计 13 Maven module（core7/channel6）；同版全平台 staging 再构建与 Android crash callback 旧位置参数兼容通过编译/测试。归档正规化后全部文件引用/大小/SHA 检查通过，SHA256=22ad4fca03094f34208dc7b626dc7724db222cd2e056bd9cb988b64696230461。旧版标签不覆盖；待 GitHub/JitPack 精确发布后另核真正远程消费。
 
 最终源码复核修复 export 临时目标碰撞和 writer 写入恢复：21 项 JVM 测试通过；完整 13 module 重新 staging、metadata/实体文件 SHA 校验通过。验收用消费者版本改为可指定候选 rc.2，远程结果另记。
+
+原生渠道版本：本轮新增机制均在 KMP core / channel，`git diff 0.2.0-rc.1..0.2.0-rc.2 -- ios-support Package.swift GYDiagnosticsNative.podspec` 为空。Swift Package / Git Pod 仍固定 0.2.0-rc.1；rc.2 的 podspec 内部版本也是 rc.1，不能把 Maven rc.2 说成新原生采集发行。宿主继续原生 rc.1 与 Maven rc.2 的兼容组合。
+
+## 0.2.0-rc.2 真正远程 Maven 消费
+
+PR #5合并/tag指向cd7d0d96569fca4622d0b6539c9f16a132092e94，JitPack最终ok/13modules/immutable tag。Release Maven重新下载SHA=22ad4fca03094f34208dc7b626dc7724db222cd2e056bd9cb988b64696230461一致。
+
+独立verification-consumer使用默认JitPack独占group，开启diagnosticsClosure/候选0.2.0-rc.2：JVM/Android共3项消费者测试、Android公共API、iOS arm64/x64编译、Simulator Framework和OHOS shared.so最终链接全部通过（BUILD SUCCESSFUL 1m3s）。core与可选DingTalk真实远程变体消费，不使用includeBuild/project/mavenLocal/临时Maven替换。日志位于忽略build/closure/remote-consumer.log。没有真实通知发送/上传或设备系统采集验收。

@@ -2,7 +2,7 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前已发布原生采集预发布版本 **0.2.0-rc.1**：Android ANR 与独立 `GYDiagnosticsNative` Swift Package/Pod。Maven、Swift Package 与 Pod 使用同一不可变 Git 标签；JitPack `status=ok`，正式远程 Android/iOS/OHOS 消费、Swift Package 两种 iOS SDK 与 Git tag Pod spec lint 已通过。发布信息见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.1)，实际验收见 [VALIDATION](VALIDATION.md)。既有 0.1.0 保持可用；无 HAR。
+当前 Maven 预发布版本 **0.2.0-rc.2**；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。JitPack `status=ok`，13 个 core / 可选通知模块已公开；Release 归档重新下载 SHA 校验通过，远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版保持可安装回退；本库无 HAR。见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.2)。
 
 ## 支持范围
 
@@ -63,9 +63,9 @@ if (batch.files.isNotEmpty()) {
 
 组件不自动采集账号、上传数据、请求用户授权、脱敏或触发模拟崩溃。实际 crash/hang 投递、后台生命周期和系统分享权限仍需真机验收。
 
-## 当前候选机制扩展
+## 0.2.0-rc.2 机制扩展
 
-未发布候选已将 Android 唯一日志写入队列/flush/有界 Throwable、同一 store 的历史批次恢复、只读枚举/尾读/流式 ZIP 与文本导出、iOS 中立报告解析、Ktor 有界记录移入组件。可选 `diagnostics-dingtalk` 独立提供 Android/iOS HTTPS/HMAC/替身可测传输；core 不依赖通知渠道。业务准入、文案与凭据仍在宿主。API、迁移例子与可删除宿主主体见[机制接入](docs/机制接入.md)。这些新 API 尚不属于已发布的 `0.2.0-rc.1`。
+本版将 Android 唯一日志写入队列/flush/有界 Throwable、同一 store 的历史批次恢复、只读枚举/尾读/流式 ZIP 与文本导出、iOS 中立报告解析、Ktor 有界记录移入组件。可选 `diagnostics-dingtalk` 独立提供 Android/iOS HTTPS/HMAC/替身可测传输；core 不依赖通知渠道。业务准入、文案与凭据仍在宿主。API、迁移例子与可删除宿主主体见[机制接入](docs/机制接入.md)。这些 API 从 `0.2.0-rc.2` 开始提供。
 
 ## 文档与反馈
 
