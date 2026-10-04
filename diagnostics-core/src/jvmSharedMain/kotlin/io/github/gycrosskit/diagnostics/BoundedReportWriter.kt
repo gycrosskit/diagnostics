@@ -57,4 +57,3 @@ class BoundedReportWriter(
         if (characterCount < value.length) truncated = true
     }
 }
-
