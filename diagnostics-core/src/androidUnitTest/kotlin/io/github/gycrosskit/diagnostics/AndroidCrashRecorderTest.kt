@@ -36,6 +36,21 @@ class AndroidCrashRecorderTest {
         }
     }
 
+    @Test fun storeAndFlushFailureStillReachOriginalHandlerExactlyOnce() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        val root = Files.createTempDirectory("android-recorder-failure").toFile()
+        val store = DiagnosticStore(root.absolutePath)
+        var downstreamCalls = 0; var flushCalls = 0
+        var recorder: AndroidCrashRecorder? = null
+        try {
+            Thread.setDefaultUncaughtExceptionHandler { _, _ -> downstreamCalls++ }
+            recorder = AndroidCrashRecorder(store, flush = { flushCalls++; error("flush failed") })
+            store.close()
+            Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(Thread.currentThread(), IllegalStateException("mock"))
+            assertEquals(1, flushCalls); assertEquals(1, downstreamCalls)
+        } finally { recorder?.close(); Thread.setDefaultUncaughtExceptionHandler(previous); store.close(); root.deleteRecursively() }
+    }
+
     @Test fun duplicateInstallIsRejectedAndCloseRestoresExistingHandler() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         val downstream = Thread.UncaughtExceptionHandler { _, _ -> error("测试不触发崩溃") }
