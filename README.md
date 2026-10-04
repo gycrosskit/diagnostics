@@ -75,3 +75,10 @@ if (batch.files.isNotEmpty()) {
 - [Releases](https://github.com/gycrosskit/diagnostics/releases) · [Issues](https://github.com/gycrosskit/diagnostics/issues)：提供版本、平台及脱敏复现。
 
 由 GY CrossKit 维护，采用 [Apache-2.0](LICENSE)。
+
+## 当前工作树的未发布修复
+
+`DiagnosticWriter` 的写入失败保留到 `flush` 完成 barrier 等待并向调用方报告；此前的后续成功写入不能清除失败。
+超时或中断的迟到 barrier 不算已报告；失败报告后，后续成功写入可恢复，不永久锁定失败状态。
+
+本轮 JVM 23 项、Android 18 项测试及 Android 编译通过，含真实文件失败、恢复与超时迟到 barrier；未触发真实通知或设备崩溃。

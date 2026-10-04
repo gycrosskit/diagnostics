@@ -18,7 +18,10 @@ import java.util.concurrent.TimeoutException
 /** 唯一有界后台写入队列。宿主先格式化/脱敏，再 append；flush barrier 报告之前的写入失败。 */
 class DiagnosticWriter(private val store: DiagnosticStore, capacity: Int = 1024) : Closeable {
     @Volatile private var writerThread: Thread? = null
-    @Volatile private var failure: Throwable? = null
+    private class WriteFailure(val cause: Throwable) {
+        @Volatile var reported = false
+    }
+    private var failure: WriteFailure? = null
     private val queue = ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
         ArrayBlockingQueue<Runnable>(capacity), { task ->
             Thread(task, "GYDiagnosticWriter").apply { isDaemon = true; writerThread = this }
@@ -26,15 +29,24 @@ class DiagnosticWriter(private val store: DiagnosticStore, capacity: Int = 1024)
 
     fun append(line: String) {
         queue.execute {
-            try { store.append(line); failure = null } catch (error: Throwable) { failure = error }
+            try {
+                store.append(line)
+                if (failure?.reported == true) failure = null
+            } catch (error: Throwable) { failure = WriteFailure(error) }
         }
     }
 
     /** timeout 和中断均向宿主报告；不会把有失败的批次伪装成已刷新。 */
     fun flush(timeoutMillis: Long = 5000) {
         require(timeoutMillis > 0)
-        if (Thread.currentThread() !== writerThread) awaitDiagnosticFlush(queue, timeoutMillis)
-        failure?.let { throw IOException("Diagnostic write failed", it) }
+        var observedFailure: WriteFailure? = null
+        val barrier = {
+            observedFailure = failure
+        }
+        if (Thread.currentThread() === writerThread) barrier()
+        else awaitDiagnosticFlush(queue, timeoutMillis, barrier)
+        // 只有 barrier 真正返回后才标记已报告；超时的迟到 barrier 不能吞掉失败。
+        observedFailure?.let { it.reported = true; throw IOException("Diagnostic write failed", it.cause) }
     }
 
     /** 宿主停止生产日志后关闭；不关闭共享的 store。 */
@@ -75,8 +87,8 @@ fun boundedThrowableReport(
 }
 
 /** 独立 barrier 便于宿主复用已有 executor，timeout/中断语义与默认 writer 一致。 */
-internal fun awaitDiagnosticFlush(queue: ExecutorService, timeoutMillis: Long) {
-    try { queue.submit {}.get(timeoutMillis, TimeUnit.MILLISECONDS) }
+internal fun awaitDiagnosticFlush(queue: ExecutorService, timeoutMillis: Long, barrier: () -> Unit = {}) {
+    try { queue.submit { barrier() }.get(timeoutMillis, TimeUnit.MILLISECONDS) }
     catch (error: InterruptedException) { Thread.currentThread().interrupt(); throw IOException("Diagnostic flush interrupted", error) }
     catch (error: TimeoutException) { throw IOException("Diagnostic flush timed out", error) }
     catch (error: Exception) { throw IOException("Diagnostic flush failed", error) }
