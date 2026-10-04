@@ -2,7 +2,7 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前 Maven 预发布版本 **0.2.0-rc.2**；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。JitPack `status=ok`，13 个 core / 可选通知模块已公开；Release 归档重新下载 SHA 校验通过，远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版保持可安装回退；本库无 HAR。见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.2)。
+当前 Maven 发布候选 **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档与新版本远程消费正在执行；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版保持可安装回退；本库无 HAR。见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.2)。
 
 ## 支持范围
 
@@ -28,7 +28,7 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.2")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.3")
 ```
 
 系统采集独立启用。iOS 原生包用根 `Package.swift` 的 `GYDiagnosticsNative` product，或 `pod "GYDiagnosticsNative", :path => "本库路径"`。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
@@ -76,9 +76,15 @@ if (batch.files.isNotEmpty()) {
 
 由 GY CrossKit 维护，采用 [Apache-2.0](LICENSE)。
 
-## 当前工作树的未发布修复
+## 0.2.0-rc.3 发布候选
 
 `DiagnosticWriter` 的写入失败保留到 `flush` 完成 barrier 等待并向调用方报告；此前的后续成功写入不能清除失败。
 超时或中断的迟到 barrier 不算已报告；失败报告后，后续成功写入可恢复，不永久锁定失败状态。
 
 本轮 JVM 23 项、Android 18 项测试及 Android 编译通过，含真实文件失败、恢复与超时迟到 barrier；未触发真实通知或设备崩溃。
+
+| 当前候选渠道 | 配套版本 |
+| --- | --- |
+| Maven / Swift Package / Git Pod | `0.2.0-rc.3` / `0.2.0-rc.1` / `0.2.0-rc.1` |
+
+可选 diagnostics-dingtalk 与 core Maven 同版本；没有 HAR。候选尚待新版本远程验收，设备行为不由编译/链接推断。
