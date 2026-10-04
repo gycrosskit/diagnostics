@@ -2,14 +2,14 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前 Maven 版本为 **0.1.0**，见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.1.0)。JitPack 产物已通过独立 Android、iOS 与 OHOS 消费验证；无 HAR / Swift Package。
+本次原生采集预发布版本为 **0.2.0-rc.1**：Android ANR 与独立 `GYDiagnosticsNative` Swift Package/Pod。Maven、Swift Package 与 Pod 使用同一不可变 Git 标签；发布状态见 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.1)，实际验收见 [VALIDATION](VALIDATION.md)。既有 0.1.0 保持可用；无 HAR。
 
 ## 支持范围
 
 | 平台 | 存储入口 | 可选采集与限制 |
 | --- | --- | --- |
-| Android API 24+ | `androidDiagnosticStore(Context)`，noBackupFilesDir | `AndroidCrashRecorder`：JVM 未捕获异常，不捕获 Native signal / ANR |
-| iOS | `iosDiagnosticStore()`，Library 并排除备份 | 独立 Swift `GYMetricKitRecorder`，iOS 14+，系统延迟 Crash/Hang JSON |
+| Android API 24+ | `androidDiagnosticStore(Context)`，noBackupFilesDir | `AndroidCrashRecorder`：JVM 未捕获异常；新增 `AndroidAnrMonitor`：系统 ANR 历史/主线程看门狗，不捕获 Native signal |
+| iOS | `iosDiagnosticStore()`，Library 并排除备份 | `GYDiagnosticsNative` ：MetricKit metrics/diagnostics JSON 与 NSException；iOS 14+，系统延迟投递 |
 | OpenHarmony | `DiagnosticStore`，宿主传 filesDir 下专属目录 | `OhosCrashRecorder`：HiAppEvent API 12+，延迟 APP_CRASH；无 ArkTS 桥 |
 | JVM | `DiagnosticStore` | 文件存储，无系统采集器 |
 
@@ -28,10 +28,10 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.1.0")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.1")
 ```
 
-系统采集独立启用。iOS 将 [GYMetricKitRecorder.swift](ios-support/GYMetricKitRecorder.swift) 加入宿主 target，再连接宿主导出的 KMP Framework；添加 Maven 依赖不会自动安装 MetricKit 采集器。
+系统采集独立启用。iOS 原生包用根 `Package.swift` 的 `GYDiagnosticsNative` product，或 `pod "GYDiagnosticsNative", :path => "本库路径"`。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
 
 ## 最小使用
 
@@ -66,6 +66,7 @@ if (batch.files.isNotEmpty()) {
 ## 文档与反馈
 
 - [接入指南](docs/接入指南.md)：容量、失败重试、采集器、逐文件协议与落盘通知。
+- [原生采集接入](docs/原生采集接入.md)：Android ANR、Swift Package/Pod、薄宿主接线与验证边界。
 - [开发与验证](docs/开发与验证.md) · [验证记录](VALIDATION.md) · [来源](SOURCE.md)。
 - [Releases](https://github.com/gycrosskit/diagnostics/releases) · [Issues](https://github.com/gycrosskit/diagnostics/issues)：提供版本、平台及脱敏复现。
 

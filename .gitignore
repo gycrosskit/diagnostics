@@ -4,3 +4,5 @@
 local.properties
 *.tar.gz
 .DS_Store
+.build/
+.swiftpm/
