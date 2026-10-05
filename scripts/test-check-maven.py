@@ -1,6 +1,7 @@
 """Run the actual checker against complete and deliberately damaged staging."""
 import copy
 import hashlib
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -82,6 +83,39 @@ class CheckerTest(unittest.TestCase):
                 module.write_text(json.dumps(metadata)); checksums(module); checksums(artifact)
                 result = subprocess.run([sys.executable, str(checker), str(root), GROUP, VERSION, 'demo', 'ios_arm64', '--jvm-only', '--max-jvm-major', '61'], text=True, capture_output=True)
                 self.assertEqual(result.returncode == 0, major == 61, result.stdout + result.stderr)
+
+
+    def test_android_runtime_bytecode_limit(self):
+        checker = Path(__file__).resolve().parents[1] / 'verification/check-maven.py'
+        cases = ((61, None, True, False), (65, None, True, False), (61, 61, True, False), (61, 65, True, False), (65, 65, False, False), (61, None, True, True))
+        for major, library_major, limit, corrupt in cases:
+            with self.subTest(major=major, library_major=library_major, limit=limit, corrupt=corrupt), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); module = stage(root)
+                metadata = json.loads(module.read_text())
+                artifact = next(module.parent.glob('*.jar')).with_suffix('.aar')
+                with zipfile.ZipFile(artifact, 'w') as aar:
+                    for name, class_major in [('classes.jar', major)] + ([('libs/dependency.jar', library_major)] if library_major else []):
+                        content = io.BytesIO()
+                        with zipfile.ZipFile(content, 'w') as jar:
+                            jar.writestr('Example.class', b'\xca\xfe\xba\xbe\x00\x00' + class_major.to_bytes(2, 'big'))
+                        jar_bytes = content.getvalue()
+                        if corrupt:
+                            damaged = bytearray(jar_bytes)
+                            damaged[jar_bytes.index(b'\xca\xfe\xba\xbe') + 4] ^= 1
+                            jar_bytes = bytes(damaged)
+                        aar.writestr(name, jar_bytes)
+                variant = metadata['variants'][0]
+                variant['attributes'] = {'org.jetbrains.kotlin.platform.type': 'androidJvm'}
+                entry = variant['files'][0]
+                entry.update({'name': artifact.name, 'url': artifact.name, 'size': artifact.stat().st_size})
+                entry.update({algorithm: hashlib.new(algorithm, artifact.read_bytes()).hexdigest() for algorithm in ('md5', 'sha1', 'sha256', 'sha512')})
+                module.write_text(json.dumps(metadata)); checksums(module); checksums(artifact)
+                command = [sys.executable, str(checker), str(root), GROUP, VERSION, 'demo', 'ios_arm64']
+                if limit: command += ['--max-jvm-major', '61']
+                result = subprocess.run(command, text=True, capture_output=True)
+                accepted = not limit or (major == 61 and library_major in (None, 61) and not corrupt)
+                self.assertEqual(result.returncode == 0, accepted, result.stdout + result.stderr)
+                if not accepted: self.assertIn('Corrupt ZIP entry' if corrupt else 'JVM bytecode exceeds major 61', result.stderr)
 
 
 if __name__ == '__main__': unittest.main()
