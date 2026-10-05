@@ -7,6 +7,7 @@ import io.github.gycrosskit.diagnostics.redactNetworkJson
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -29,12 +30,15 @@ import io.ktor.util.reflect.TypeInfo
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.charsets.Charset
+import io.ktor.utils.io.readByte
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -181,37 +185,60 @@ class DiagnosticsKtorTest {
         } finally { client.close() }
     }
 
+    @OptIn(InternalAPI::class)
     @Test fun streamingResponseDoesNotWaitForEofOrReadBody() = runTest {
-        val store = NetworkLogStore<Unit>()
-        val channel = ByteChannel(autoFlush = true)
-        val client = HttpClient(MockEngine { respond(channel, headers = textHeaders("pending")) }) {
-            install(DiagnosticsKtor) { capture = NetworkCapture(store, { Unit }, captureBody = true, redactBody = { it }) }
-        }
-        try {
-            withTimeout(3000) {
-                client.prepareGet("https://example.test/").execute { response ->
-                    assertEquals(HttpStatusCode.OK, response.status)
-                    assertEquals(2, store.records.value.size)
-                    assertFalse(channel.isClosedForRead)
-                    assertTrue(response.body<ByteReadChannel>() === channel)
-                    assertTrue(store.records.value.none { it.message.contains("BODY:") })
+        for (enabled in listOf(false, true)) {
+            val store = NetworkLogStore<Unit>()
+            val channel = ByteChannel(autoFlush = true)
+            channel.writeStringUtf8("pending")
+            // MockEngine 默认使用真实 IO dispatcher；虚拟 timeout 必须与 engine 使用同一调度器。
+            val engine = MockEngine(MockEngineConfig().apply {
+                dispatcher = StandardTestDispatcher(testScheduler)
+                addHandler { respond(channel, headers = textHeaders("pending")) }
+            })
+            val client = HttpClient(engine) {
+                if (enabled) install(DiagnosticsKtor) {
+                    capture = NetworkCapture(store, { Unit }, captureBody = true, redactBody = { it })
                 }
             }
-        } finally { channel.cancel(); client.close() }
+            try {
+                withTimeout(3000) {
+                    client.prepareGet("https://example.test/").execute { response ->
+                        assertEquals(HttpStatusCode.OK, response.status)
+                        assertEquals(if (enabled) 2 else 0, store.records.value.size)
+                        assertFalse(channel.isClosedForRead)
+                        assertTrue(response.rawContent === channel)
+                        // Ktor 的 DefaultTransformers 为 body<ByteReadChannel>() 创建复制 channel，裸客户端也如此。
+                        val original = response.body<ByteReadChannel>()
+                        assertEquals('p'.code.toByte(), original.readByte())
+                        assertTrue(store.records.value.none { it.message.contains("BODY:") })
+                    }
+                }
+            } finally { channel.cancel(null); client.close() }
+        }
     }
 
     @Test fun originalExceptionsAndCancellationPropagateWithoutSecretMessages() = runTest {
         for (cause in listOf(IllegalStateException("exception-secret"), CancellationException("cancel-secret"))) {
             val store = NetworkLogStore<Unit>()
-            val client = HttpClient(MockEngine { throw cause }) {
-                install(DiagnosticsKtor) { capture = NetworkCapture(store, { Unit }) }
+            suspend fun receiveFailure(enabled: Boolean): Throwable {
+                val client = HttpClient(MockEngine { throw cause }) {
+                    if (enabled) install(DiagnosticsKtor) { capture = NetworkCapture(store, { Unit }) }
+                }
+                return try {
+                    val actual = try { client.get("https://example.test/"); null } catch (caught: Throwable) { caught }
+                    assertNotNull(actual)
+                } finally { client.close() }
             }
-            try {
-                val actual = try { client.get("https://example.test/"); null } catch (caught: Throwable) { caught }
-                assertTrue(actual === cause)
-                assertEquals(NetworkLogKind.FAILURE, store.records.value.last().kind)
-                assertTrue(store.records.value.none { it.message.contains("-secret") })
-            } finally { client.close() }
+            val baseline = receiveFailure(false)
+            val actual = receiveFailure(true)
+            // JVM 协程恢复 stacktrace 时可复制异常；插件须保持裸 Ktor 的类型、消息和原 cause 链。
+            assertEquals(baseline::class, actual::class)
+            assertEquals(baseline.message, actual.message)
+            assertTrue(generateSequence(actual) { it.cause }.any { it === cause })
+            if (cause is CancellationException) assertTrue(actual is CancellationException)
+            assertEquals(NetworkLogKind.FAILURE, store.records.value.last().kind)
+            assertTrue(store.records.value.none { it.message.contains("-secret") })
         }
     }
 

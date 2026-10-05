@@ -30,6 +30,7 @@ jobs:
       - run: |
           python3 scripts/test-check-maven.py
           python3 scripts/test-jitpack-metadata.py
+          python3 scripts/test-check-public-maven.py
           bash -n scripts/archive-prebuilt.sh scripts/ci-release.sh jitpack-install.sh
   android:
     runs-on: ubuntu-24.04
@@ -42,6 +43,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
       - run: bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:jvmTest :diagnostics-core:testDebugUnitTest :diagnostics-dingtalk:jvmTest :diagnostics-dingtalk:testDebugUnitTest :diagnostics-ktor:jvmTest :diagnostics-ktor:testDebugUnitTest :diagnostics-okhttp:jvmTest :diagnostics-okhttp:compileDebugKotlinAndroid --no-daemon --max-workers=1
       - run: python3 scripts/assert-test-results.py diagnostics-core/build/test-results/jvmTest diagnostics-dingtalk/build/test-results/jvmTest diagnostics-ktor/build/test-results/jvmTest diagnostics-okhttp/build/test-results/jvmTest diagnostics-core/build/test-results/testDebugUnitTest diagnostics-dingtalk/build/test-results/testDebugUnitTest diagnostics-ktor/build/test-results/testDebugUnitTest
@@ -56,6 +58,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - run: bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:compileKotlinIosArm64 :diagnostics-dingtalk:compileKotlinIosArm64 :diagnostics-ktor:compileKotlinIosArm64 :diagnostics-core:compileKotlinOhosArm64 :diagnostics-dingtalk:compileKotlinOhosArm64 :diagnostics-ktor:compileKotlinOhosArm64 --no-daemon --max-workers=1
       - run: |
           if [[ "$(uname -m)" == arm64 ]]; then simulator=iosSimulatorArm64Test; else simulator=iosX64Test; fi
@@ -63,11 +66,11 @@ jobs:
           python3 scripts/assert-test-results.py "diagnostics-core/build/test-results/$simulator" "diagnostics-dingtalk/build/test-results/$simulator" "diagnostics-ktor/build/test-results/$simulator"
       - run: xcrun --sdk iphonesimulator swiftc -typecheck -target "$(uname -m)-apple-ios14.0-simulator" -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" ios-support/*.swift
   release-android:
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+    if: github.event_name == 'pull_request' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      VERSION: ${{ github.event.release.tag_name || inputs.version }}
+      VERSION: ${{ github.event.release.tag_name || inputs.version || '0.2.0-rc.5' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -76,15 +79,19 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
       - run: bash scripts/ci-release.sh
-      - run: bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer jvmTest testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork=true --refresh-dependencies --no-daemon --max-workers=1
+      - run: |
+          network=false
+          if [[ "$VERSION" == 0.2.0-rc.6 ]]; then network=true; fi
+          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer jvmTest testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
   release-native:
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+    if: github.event_name == 'pull_request' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
     runs-on: macos-15
     timeout-minutes: 60
     env:
-      VERSION: ${{ github.event.release.tag_name || inputs.version }}
+      VERSION: ${{ github.event.release.tag_name || inputs.version || '0.2.0-rc.5' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -93,7 +100,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - run: bash scripts/ci-release.sh
       - run: |
+          network=false
+          if [[ "$VERSION" == 0.2.0-rc.6 ]]; then network=true; fi
           if [[ "$(uname -m)" == arm64 ]]; then simulator=linkDebugFrameworkIosSimulatorArm64; else simulator=linkDebugFrameworkIosX64; fi
-          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork=true --refresh-dependencies --no-daemon --max-workers=1
+          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1

@@ -23,3 +23,13 @@ EXTRACT
 modules=diagnostics-core,diagnostics-dingtalk
 if [[ "$VERSION" == 0.2.0-rc.6 ]]; then modules="$modules,diagnostics-ktor,diagnostics-okhttp"; fi
 python3 verification/check-maven.py "$staging/maven" com.github.gycrosskit.diagnostics "$VERSION" "$modules" ios_arm64,ios_x64,ios_simulator_arm64,ohos_arm64
+
+publications="$(python3 - "$staging/maven" "$VERSION" <<'PUBLICATIONS'
+from pathlib import Path
+import sys
+print(','.join(sorted(p.parent.parent.name for p in Path(sys.argv[1]).rglob('*.module') if p.parent.name == sys.argv[2])))
+PUBLICATIONS
+)"
+tag_sha="$(git ls-remote --tags https://github.com/gycrosskit/diagnostics.git "refs/tags/$VERSION" "refs/tags/$VERSION^{}" | awk '$2 ~ /\^\{\}$/ {peeled=$1} {direct=$1} END {print peeled ? peeled : direct}')"
+[[ "$tag_sha" =~ ^[a-f0-9]{40}$ ]] || { echo 'Cannot resolve immutable tag' >&2; exit 1; }
+python3 scripts/check-public-maven.py --repo diagnostics --version "$VERSION" --commit "$tag_sha" --expected-publications "$publications" --output-dir "$staging/public-proof"
