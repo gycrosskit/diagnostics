@@ -7,13 +7,25 @@ import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.readByteArray
 import kotlinx.io.writeString
 
-/** 路径只用于宿主注入的私有文件操作；不携带账号、设备或业务 metadata。 */
+/**
+ * 某一时刻的文件长度快照；不冻结源文件，不携带账号、设备或业务 metadata。
+ * @property path 私有文件的绝对路径，只供受控 I/O 使用，勿写入公开日志。
+ * @property name 文件名，不含目录，用于展示/归档。
+ * @property size 捕获时的字节数，须非负；后续追加不进入本快照，缩短会导致读取失败。
+ */
 data class DiagnosticSnapshotFile(val path: String, val name: String, val size: Long)
+/**
+ * 宿主明确授权迁入的历史目录，不扫描其他目录。
+ * @property directory 私有绝对路径，不得含父目录跳转或换行。
+ * @property prefixes 允许迁入的非空文件名前缀；临时文件和符号链接不读取。
+ * @property frozen true 表示整个旧批次须一次迁入；false 允许按容量选择活动文件。
+ */
 data class LegacyDiagnosticSource(val directory: String, val prefixes: List<String>, val frozen: Boolean = false)
 
 /** 通用只读文件机制，不持有日志队列或批次 owner。 */
 object DiagnosticFiles {
     private val fs get() = SystemFileSystem
+    /** 同步列出匹配前缀的非空常规文件快照，按名称排序；不存在目录返回空列表。 */
     @Throws(Exception::class)
     fun list(directory: String, prefixes: List<String>): List<DiagnosticSnapshotFile> {
         val requested = checkedPath(directory)
@@ -26,7 +38,10 @@ object DiagnosticFiles {
             .filter { it.size > 0 }.sortedBy { it.name }
     }
 
-    /** 直接 seek 到尾部，不分配整个文件；超限首行丢弃，避免 UTF-8 半字符进入摘要。 */
+    /**
+     * 同步 seek 到快照尾部，maxBytes 为 1..1 MiB；不分配整个文件。
+     * dropPartialFirstLine=true 时丢弃截断首行，避免 UTF-8 半字符进入摘要；否则返回原始字节。
+     */
     @Throws(Exception::class)
     fun readTail(file: DiagnosticSnapshotFile, maxBytes: Int, dropPartialFirstLine: Boolean = false): ByteArray {
         require(maxBytes in 1..1024 * 1024)
@@ -39,6 +54,7 @@ object DiagnosticFiles {
         } else bytes
     }
 
+    /** 同步打开快照长度范围，不读取后续追加；调用方必须在成功/失败后关闭 reader。 */
     @Throws(Exception::class)
     fun openSnapshot(file: DiagnosticSnapshotFile): DiagnosticFileReader = DiagnosticFileReader(open(file), file.size, exactLength = false)
 
@@ -107,6 +123,7 @@ object DiagnosticFiles {
         require(value.startsWith('/') && value.split('/').none { it == ".." } && '\n' !in value && '\r' !in value)
         return Path(value)
     }
+    /** 同步捕获安全常规文件的当前长度；拒绝符号链接文件和不可用路径，不持有文件句柄。 */
     @Throws(Exception::class)
     fun snapshot(path: String): DiagnosticSnapshotFile {
         val requested = checkedPath(path)

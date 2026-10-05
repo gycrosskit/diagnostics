@@ -3,7 +3,7 @@ package io.github.gycrosskit.diagnostics
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.*
 
-/** 默认 Library 私有目录并排除系统备份；不安装异常处理器或 MetricKit subscriber。 */
+/** 后台同步创建 Library 专属 Store 并排除系统备份；不安装采集器，宿主拥有并负责 close。 */
 @OptIn(ExperimentalForeignApi::class)
 @Throws(Exception::class)
 fun iosDiagnosticStore(limits: DiagnosticLimits = DiagnosticLimits(), legacySources: List<LegacyDiagnosticSource> = emptyList()): DiagnosticStore {

@@ -9,6 +9,37 @@ import kotlin.test.*
 
 class DingTalkContractTest {
     private val endpoint = "https://oapi.dingtalk.com/robot/send?access_token=fixture"
+    @Test fun closingOneWrapperDoesNotCloseBorrowedTransportOrAnotherWrapper() = runTest {
+        var calls = 0
+        val transport = HttpClient(MockEngine { calls++; respond("""{"errcode":0}""", HttpStatusCode.OK) })
+        val first = DingTalkWebhookClient(endpoint, "test-secret", transport)
+        val second = DingTalkWebhookClient(endpoint, "test-secret", transport)
+        try {
+            first.close(); first.close()
+            assertEquals(DingTalkSendStatus.CLOSED, first.send("title", "text").status)
+            assertTrue(second.send("title", "text").success)
+            assertEquals(1, calls)
+        } finally { first.close(); second.close(); transport.close() }
+    }
+
+    @Test fun invalidEndpointFailsWithoutTransportAndPayloadPreservesEscapedText() = runTest {
+        var calls = 0
+        val transport = HttpClient(MockEngine { calls++; error("invalid endpoint must not reach transport") })
+        val client = DingTalkWebhookClient(endpoint.replace("oapi.dingtalk.com", "evil.test"), "test-secret", transport)
+        try { assertEquals(DingTalkSendStatus.TRANSPORT_FAILURE, client.send("title", "text").status) }
+        finally { client.close(); transport.close() }
+        assertEquals(0, calls)
+        val title = "quoted \"title\""
+        val markdown = "first\n\\second"
+        val body = kotlinx.serialization.json.Json.parseToJsonElement(encodeDingTalkMarkdownPayload(title, markdown))
+        val payload = body as kotlinx.serialization.json.JsonObject
+        val content = payload["markdown"] as kotlinx.serialization.json.JsonObject
+        assertEquals(title, (content["title"] as kotlinx.serialization.json.JsonPrimitive).content)
+        assertEquals(markdown, (content["text"] as kotlinx.serialization.json.JsonPrimitive).content)
+        for (malformed in listOf("{}", "[]", "null", """{"errcode":{}}""", """{"errcode":"bad"}""")) {
+            assertEquals(DingTalkSendStatus.INVALID_RESPONSE, decodeDingTalkWebhookResponse(malformed).status)
+        }
+    }
     @Test fun signatureAndOfficialEndpointValidation() {
         val url = Url(signedDingTalkWebhook(endpoint, "test-secret", 1700000000000))
         assertEquals("1700000000000", url.parameters["timestamp"])

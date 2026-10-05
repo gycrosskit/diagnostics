@@ -19,6 +19,21 @@ enum class AnrReportSource {
  *
  * [systemTrace] 来自 Android 11+ 的 ApplicationExitInfo；[mainThreadStack] 与
  * [allThreadStacks] 来自系统 trace 或看门狗采样。字段保持纯文本，诊断 ZIP 解压后无需专用工具即可查看。
+ * @property source 系统历史最终事实或当前进程 watchdog 补充。
+ * @property timestampMillis Unix 毫秒，参与稳定文件名。
+ * @property processName 原文进程名，未知为空。
+ * @property pid 进程号，非正数不进入文件名。
+ * @property foregroundActivity 最近恢复的 Activity 类名，未知为空。
+ * @property importance 系统进程优先状态，未知为空。
+ * @property pssKb 比例内存大小，单位 KiB，未知为 0。
+ * @property rssKb 常驻内存大小，单位 KiB，未知为 0。
+ * @property cpuTimeMillis 进程累计 CPU 毫秒，未知为 0。
+ * @property blockedDurationMillis watchdog 等待主线程确认的毫秒，未知为 0。
+ * @property description 原文描述，文件头限制单行最多 2048 字符。
+ * @property suspectedReason 基于栈的启发式排查建议，不代表根因已确认。
+ * @property mainThreadStack 主线程栈原文，可能含业务信息。
+ * @property allThreadStacks 其他线程栈原文。
+ * @property systemTrace ApplicationExitInfo 原文 trace。
  */
 data class AnrReport(
     val source: AnrReportSource,
@@ -38,7 +53,17 @@ data class AnrReport(
     val systemTrace: String = "",
 )
 
-/** ANR 列表只读取文件头，避免概览页一次把多份完整线程栈放进 Compose 状态。 */
+/**
+ * ANR 列表只读取文件头，避免完整线程栈进入页面状态。
+ * @property id 受控文件名，不含目录。
+ * @property source 系统历史或 watchdog。
+ * @property timestampMillis Unix 毫秒。
+ * @property processName 原文进程名。
+ * @property foregroundActivity 最近恢复的 Activity 类名。
+ * @property blockedDurationMillis 主线程等待毫秒，未知为 0。
+ * @property description 单行原文描述。
+ * @property suspectedReason 启发式排查建议。
+ */
 data class AnrReportSummary(
     val id: String,
     val source: AnrReportSource,
@@ -50,7 +75,11 @@ data class AnrReportSummary(
     val suspectedReason: String,
 )
 
-/** ANR 详情同时保留结构化字段和原始文本，便于页面分析、复制及外部工具二次处理。 */
+/**
+ * @property id 受控文件名，不含目录。
+ * @property report 结构化报告。
+ * @property rawText 受 256 Ki 字符读取上限控制的原文，宿主负责分享准入与脱敏。
+ */
 data class StoredAnrReport(
     val id: String,
     val report: AnrReport,
@@ -61,11 +90,14 @@ data class StoredAnrReport(
  * ANR 报告文件仓库。
  *
  * 与崩溃文件相同，写入过程使用临时文件加原子重命名；系统 ANR 使用稳定文件名，因此同一条
- * ApplicationExitInfo 在多次启动时不会重复保存。
+ * ApplicationExitInfo 在多次启动时不会重复保存；最多保留 10 份，每份 256 KiB。
+ * 所有方法同步 I/O 且实例锁串行，宿主后台调用；不持有后台线程或长期文件句柄。
+ * reportDirectory 必须是宿主专属私有目录，实例不提供跨进程/跨实例锁。
  */
 class AnrReportStore(
     private val reportDirectory: File,
 ) {
+    /** 使用 noBackupFilesDir/anrs，构造不启动采集。 */
     constructor(context: Context) : this(
         reportDirectory = File(context.noBackupFilesDir, ANR_DIRECTORY_NAME),
     )
@@ -308,4 +340,3 @@ private fun formatAnrTime(timestampMillis: Long): String = SimpleDateFormat(
 
 private const val MAX_MAIN_TRACE_LINES = 160
 private const val MAX_HEADER_CHARACTERS = 2 * 1024
-private const val TRUNCATION_MARKER = "\n[ANR REPORT TRUNCATED: exceeded 256 KiB]\n"

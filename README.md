@@ -2,7 +2,9 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前 Maven 发布候选 **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档、全变体 HTTP 与新版本真实远程消费已通过；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版历史记录和不可变资产保留；本库无 HAR。见 [当前 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.3)。
+当前 Maven 候选 **0.2.0-rc.4**（`diagnostics-core` / `diagnostics-dingtalk`）：修复 iOS 小数秒 timestamp 的毫秒转换，补充快照变化检测、通知 transport 生命周期和非法响应回归，完善公共 API 注释。**发布准备中，完成远程验收后更新**。Swift Package / Git Pod 继续使用已验 `0.2.0-rc.1`；本库无 HAR。以下 rc.3 及更早版本记录保留为历史验收。
+
+已发布 Maven **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档、全变体 HTTP 与新版本真实远程消费已通过；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版历史记录和不可变资产保留；本库无 HAR。见 [当前 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.3)。
 
 ## 支持范围
 
@@ -101,7 +103,7 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.3")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.4")
 ```
 
 系统采集独立启用。iOS 原生包用根 `Package.swift` 的 `GYDiagnosticsNative` product，或 `pod "GYDiagnosticsNative", :path => "本库路径"`。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。

@@ -24,7 +24,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 1. Android 11+ 在下次启动读取 [ApplicationExitInfo]，获得系统最终认定的真实 ANR 及 trace。
  * 2. 当前进程使用主线程看门狗，在系统杀进程前保存主线程和其他线程栈，弥补部分 ROM 不提供 trace 的情况。
  *
- * 看门狗只向主线程投递一个轻量 Runnable，不做业务埋点，也不改变 Activity 生命周期。
+ * 看门狗每 1 秒探测，主线程超过 5 秒仅采样一次；恢复前不重复保存，阈值不是系统 ANR 判定。
+ * context 必须提供 Application；宿主在主线程串行 start、后台串行 close，先隐私准入。
+ * reportStore 由宿主拥有，log 在采集工作线程调用，必须轻量且不能依赖主线程同步等待。
+ * 看门狗只向主线程投递轻量 Runnable，不做业务埋点，不改变 Activity 生命周期。
  */
 class AndroidAnrMonitor(
     context: Context,
