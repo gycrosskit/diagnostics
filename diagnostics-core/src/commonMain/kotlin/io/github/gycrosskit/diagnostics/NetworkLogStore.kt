@@ -18,10 +18,17 @@ enum class NetworkLogKind { REQUEST, RESPONSE, FAILURE, OTHER }
  * @property summary 首行前 240 个字符。
  * @property message 有界原文，宿主必须先移除凭据和个人信息。
  * @property truncated 输入是否超过字符额度。
+ * @property requestId 可选采集适配生成的同次发送标识；旧文本/截断掉关联行时为 null。
+ * @property durationMillis 到响应头/失败的单调时钟耗时；旧文本/截断掉关联行时为 null。
  */
 data class NetworkLogRecord<C>(val id: Long, val timestampMillis: Long, val context: C,
     val kind: NetworkLogKind, val url: String, val statusCode: Int?, val summary: String,
-    val message: String, val truncated: Boolean)
+    val message: String, val truncated: Boolean) {
+    // 不扩充 data class 主构造，保留旧 constructor/copy 的二进制入口。
+    val requestId: Long? get() = correlationLine()?.substringAfter('[')?.substringBefore(']')?.toLongOrNull()
+    val durationMillis: Long? get() = correlationLine()?.substringAfter("] ", "")?.substringBefore("ms")?.toLongOrNull()
+    private fun correlationLine(): String? = message.lineSequence().take(3).firstOrNull { it.startsWith('[') && it.contains("] ") }
+}
 
 /**
  * 可跨线程的内存日志环，实例锁串行提交；不写文件、不发通知。
@@ -31,8 +38,10 @@ data class NetworkLogRecord<C>(val id: Long, val timestampMillis: Long, val cont
  */
 @OptIn(ExperimentalTime::class)
 class NetworkLogStore<C>(val maxRecords: Int = 100, val maxMessageCharacters: Int = 32 * 1024) {
-    private val lock = StoreLock()
+    // StateFlow 的 Unconfined 观察者可在发布时同步清空；Native 也必须允许同线程重入。
+    private val lock = StoreLock(recursive = true)
     private var nextId = 0L
+    private var nextRequestId = 0L
     private val state = MutableStateFlow<List<NetworkLogRecord<C>>>(emptyList())
     /** 最新只读列表；StateFlow 观察者负责自身 scope 生命周期。 */
     val records: StateFlow<List<NetworkLogRecord<C>>> = state.asStateFlow()
@@ -49,6 +58,7 @@ class NetworkLogStore<C>(val maxRecords: Int = 100, val maxMessageCharacters: In
     }
     /** 同步清空内存记录，不重置递增 id，也不取消观察者。 */
     fun clear() = lock.locked { state.value = emptyList() }
+    internal fun allocateRequestId(): Long = lock.locked { ++nextRequestId }
 }
 /** 只识别首行 REQUEST:/RESPONSE:/失败关键字，不解析 URL 或触发网络。 */
 fun classifyNetworkLog(message: String): NetworkLogKind {

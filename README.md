@@ -4,6 +4,8 @@
 
 预发布 Maven **0.2.0-rc.5**（`diagnostics-core` / `diagnostics-dingtalk`）：补齐通知模块 OHOS Curl/HMAC，实现响应字节上限、严格错误码类型及负快照大小校验。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。新标签Release/JitPack全部文件及core+notify新目录远程消费、iOS Framework与OHOS最终.so链接已通过，结果见 [完整审查](docs/完整审查.md)；以下旧版本记录仅作为历史证据。
 
+候选升级：新增可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和 [自动回归门禁](docs/持续集成.md)，验证与发布正在进行；尚未改变上面已发布版本的验收结论。
+
 ## 支持范围
 
 | 平台 | 存储入口 | 可选采集与限制 |
