@@ -62,10 +62,10 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - run: bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:compileKotlinIosArm64 :diagnostics-dingtalk:compileKotlinIosArm64 :diagnostics-ktor:compileKotlinIosArm64 :diagnostics-core:compileKotlinOhosArm64 :diagnostics-dingtalk:compileKotlinOhosArm64 :diagnostics-ktor:compileKotlinOhosArm64 --no-daemon --max-workers=1
       - run: |
           if [[ "$(uname -m)" == arm64 ]]; then simulator=iosSimulatorArm64Test; else simulator=iosX64Test; fi
-          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" ":diagnostics-core:$simulator" ":diagnostics-dingtalk:$simulator" ":diagnostics-ktor:$simulator" --no-daemon --max-workers=1
+          # 复用同一 Gradle JVM 的成功 DNS 缓存；编译后的新进程曾在测试启动前解析失败。
+          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:compileKotlinIosArm64 :diagnostics-dingtalk:compileKotlinIosArm64 :diagnostics-ktor:compileKotlinIosArm64 :diagnostics-core:compileKotlinOhosArm64 :diagnostics-dingtalk:compileKotlinOhosArm64 :diagnostics-ktor:compileKotlinOhosArm64 ":diagnostics-core:$simulator" ":diagnostics-dingtalk:$simulator" ":diagnostics-ktor:$simulator" --no-daemon --max-workers=1
           python3 scripts/assert-test-results.py "diagnostics-core/build/test-results/$simulator" "diagnostics-dingtalk/build/test-results/$simulator" "diagnostics-ktor/build/test-results/$simulator"
       - run: xcrun --sdk iphonesimulator swiftc -typecheck -target "$(uname -m)-apple-ios14.0-simulator" -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" ios-support/*.swift
   release-android:
