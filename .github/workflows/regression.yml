@@ -14,7 +14,8 @@ on:
 permissions:
   contents: read
 env:
-  JAVA_TOOL_OPTIONS: -Djava.security.properties=${{ github.workspace }}/scripts/ci-java.security
+  # 此版 Native 下载器使用 URLConnection 默认超时；阻塞读取必须退出，才能进入其已有续传重试。
+  JAVA_TOOL_OPTIONS: -Djava.security.properties=${{ github.workspace }}/scripts/ci-java.security -Dsun.net.client.defaultConnectTimeout=30000 -Dsun.net.client.defaultReadTimeout=60000
 concurrency:
   group: regression-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
