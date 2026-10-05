@@ -2,7 +2,7 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前 Maven 候选 **0.2.0-rc.4**（`diagnostics-core` / `diagnostics-dingtalk`）：修复 iOS 小数秒 timestamp 的毫秒转换，补充快照变化检测、通知 transport 生命周期和非法响应回归，完善公共 API 注释。**发布准备中，完成远程验收后更新**。Swift Package / Git Pod 继续使用已验 `0.2.0-rc.1`；本库无 HAR。以下 rc.3 及更早版本记录保留为历史验收。
+当前 Maven **0.2.0-rc.4**（`diagnostics-core` / `diagnostics-dingtalk`）：修复 iOS 小数秒 timestamp 的毫秒转换，补充快照变化检测、通知 transport 生命周期和非法响应回归，完善公共 API 注释。**已发布；JitPack、公开产物校验与干净远程消费通过**。Swift Package / Git Pod 继续使用已验 `0.2.0-rc.1`；本库无 HAR。以下 rc.3 及更早版本记录保留为历史验收。
 
 已发布 Maven **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档、全变体 HTTP 与新版本真实远程消费已通过；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版历史记录和不可变资产保留；本库无 HAR。见 [当前 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.3)。
 
@@ -175,3 +175,11 @@ Maven `0.2.0-rc.3`；未变 Native Swift Package / Git Pod 保留 `0.2.0-rc.1`�
 精确 JitPack rc.3 新目录消费者包含 core 与可选 dingtalk：42 tasks / 51s，Android AAR、JVM 1 项及 Android 2 项消费测试、iOS 三架构编译和 simulator Framework、OHOS core aarch64 .so；全部消费测试通过。未变 Swift Package/Git Pod rc.1 沿用已验渠道。本轮不发送真实通知。
 
 实际日志与 JSON 账单位于 `build/remote-library-review/`。真实设备、业务账号登录/聊天/直播/PiP、权限 UI、真实 Bug/通知发送未执行。
+
+## 0.2.0-rc.4 本轮测试与远程验收
+
+2026-10-05：本轮自有源码和公开 API 审查、关键回归与受影响平台编译通过；真实 JitPack `0.2.0-rc.4` 的最终标签提交、13 个 publications 的 POM/Module、所有变体文件大小与四种声明哈希、内部精确版本及 available-at 均通过。Release Maven 归档重新下载 SHA-256 为 `d9142b53d885caad03220e216ac3d044523c14e2a761cc951d5615d2e5487ed5`。公开 MD5/SHA-1 sidecar 通过；SHA-256/SHA-512 sidecar 的 HTTP 404 记录为渠道缺失。
+
+干净消费工程使用固定远程版本，没有本地 Maven、includeBuild 或其他组件源码替代；通过现有入口的 Android/iOS / OHOS / JVM 编译和相应最终链接。 JitPack 顶层 component.url 改写地址返回404，实际变体/available-at与真实消费者正常；未创建伪坐标掩盖此字段。
+
+完整回归范围、精简原则、注释契约与仍需设备/业务验收的边界见 [14 个功能组件测试与 API 审查](https://github.com/gycrosskit/.github/blob/main/docs/组件测试与API审查.md)。源码测试与远程消费不代替真机和厂商业务验收。
