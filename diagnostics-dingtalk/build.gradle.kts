@@ -1,6 +1,9 @@
 plugins { kotlin("multiplatform"); id("com.android.library"); `maven-publish` }
 kotlin {
-    androidTarget { publishLibraryVariants("release") }
+    androidTarget {
+        publishLibraryVariants("release")
+        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
     jvm { compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }; iosArm64(); iosSimulatorArm64(); iosX64(); ohosArm64()
     applyDefaultHierarchyTemplate()
     sourceSets {
@@ -25,5 +28,5 @@ kotlin {
         }
     }
 }
-android { namespace = "io.github.gycrosskit.diagnostics.dingtalk"; compileSdk = 36; defaultConfig { minSdk = 24 } }
+android { namespace = "io.github.gycrosskit.diagnostics.dingtalk"; compileSdk = 36; compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }; defaultConfig { minSdk = 24 } }
 publishing { repositories.maven { name = "staging"; url = uri(rootProject.layout.buildDirectory.dir("maven")) } }

@@ -36,4 +36,6 @@ PUBLICATIONS
 )"
 tag_sha="$(git ls-remote --tags https://github.com/gycrosskit/diagnostics.git "refs/tags/$VERSION" "refs/tags/$VERSION^{}" | awk '$2 ~ /\^\{\}$/ {peeled=$1} {direct=$1} END {print peeled ? peeled : direct}')"
 [[ "$tag_sha" =~ ^[a-f0-9]{40}$ ]] || { echo 'Cannot resolve immutable tag' >&2; exit 1; }
+# 请求实际 POM 会触发首次 JitPack 构建；随后仍按精确 tag SHA 和全部公开字节严格校验。
+curl -fsSL --retry 3 --connect-timeout 30 --max-time 180 -o "$staging/core.pom" "https://jitpack.io/com/github/gycrosskit/diagnostics/diagnostics-core/$VERSION/diagnostics-core-$VERSION.pom"
 python3 scripts/check-public-maven.py --repo diagnostics --version "$VERSION" --commit "$tag_sha" --expected-publications "$publications" --output-dir "$staging/public-proof"
