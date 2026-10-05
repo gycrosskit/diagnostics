@@ -159,6 +159,7 @@ class DiagnosticStoreTest {
         assertFailsWith<IllegalArgumentException> { DiagnosticStore("../other") }
         assertFailsWith<IllegalArgumentException> { DiagnosticStore("/tmp/../other") }
         assertFailsWith<IllegalArgumentException> { DiagnosticLimits(maxLogBytes = 0) }
+        assertFailsWith<IllegalArgumentException> { DiagnosticFiles.openSnapshot(DiagnosticSnapshotFile("/tmp/file", "file", -1)) }
     }
 
     @Test fun activeSnapshotReadsOnlyCapturedLengthAndRejectsShortenedSource() = inDirectory { root ->

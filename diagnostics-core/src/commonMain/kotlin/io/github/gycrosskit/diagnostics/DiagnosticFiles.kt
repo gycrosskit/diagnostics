@@ -137,6 +137,7 @@ object DiagnosticFiles {
         return fs.resolve(path) == Path(fs.resolve(parent), path.name)
     }
     private fun checkedFile(file: DiagnosticSnapshotFile): Path {
+        require(file.size >= 0) { "Snapshot size must be non-negative" }
         val path = checkedPath(file.path)
         check(safeFile(path)) { "Snapshot source unavailable" }
         check((fs.metadataOrNull(path)?.size ?: 0) >= file.size) { "Snapshot source shortened" }

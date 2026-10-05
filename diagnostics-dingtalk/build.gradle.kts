@@ -1,7 +1,7 @@
 plugins { kotlin("multiplatform"); id("com.android.library"); `maven-publish` }
 kotlin {
     androidTarget { publishLibraryVariants("release") }
-    jvm(); iosArm64(); iosSimulatorArm64(); iosX64()
+    jvm(); iosArm64(); iosSimulatorArm64(); iosX64(); ohosArm64()
     applyDefaultHierarchyTemplate()
     sourceSets {
         commonMain.dependencies {
@@ -19,6 +19,10 @@ kotlin {
         androidMain.dependencies { implementation("io.ktor:ktor-client-android:3.3.3-1.1.0-04") }
         jvmMain.dependencies { implementation("io.ktor:ktor-client-cio:3.3.3-1.1.0-04") }
         iosMain.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3-1.1.0-04") }
+        ohosArm64Main.dependencies {
+            implementation("io.ktor:ktor-client-curl:3.3.3-1.1.0-04")
+            implementation(project(":diagnostics-core"))
+        }
     }
 }
 android { namespace = "io.github.gycrosskit.diagnostics.dingtalk"; compileSdk = 36; defaultConfig { minSdk = 24 } }

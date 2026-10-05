@@ -7,7 +7,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.util.encodeBase64
 import io.ktor.utils.io.readRemaining
-import kotlinx.io.readString
+import kotlinx.io.readByteArray
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 import kotlin.concurrent.atomics.AtomicInt
@@ -66,9 +66,9 @@ class DingTalkWebhookClient(
             }.execute { response ->
             val status = response.status.value
             if (status !in 200..299) return@execute DingTalkSendResult(DingTalkSendStatus.HTTP_FAILURE, status)
-            val body = response.bodyAsChannel().readRemaining(16 * 1024L + 1).readString()
-            if (body.length > 16 * 1024) return@execute DingTalkSendResult(DingTalkSendStatus.INVALID_RESPONSE, status)
-            decodeDingTalkWebhookResponse(body, status)
+            val bytes = response.bodyAsChannel().readRemaining(16 * 1024L + 1).readByteArray()
+            if (bytes.size > 16 * 1024) return@execute DingTalkSendResult(DingTalkSendStatus.INVALID_RESPONSE, status)
+            decodeDingTalkWebhookResponse(bytes.decodeToString(), status)
             }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) {
@@ -104,7 +104,7 @@ fun encodeDingTalkMarkdownPayload(title: String, markdown: String): String = bui
 /** 解析 errcode，非法 JSON/类型返回 INVALID_RESPONSE；不回显正文，httpStatus 由调用方提供。 */
 fun decodeDingTalkWebhookResponse(body: String, httpStatus: Int = 200): DingTalkSendResult {
     val root = runCatching { Json.parseToJsonElement(body) as? JsonObject }.getOrNull()
-    val code = (root?.get("errcode") as? JsonPrimitive)?.intOrNull
+    val code = (root?.get("errcode") as? JsonPrimitive)?.takeUnless { it.isString }?.intOrNull
         ?: return DingTalkSendResult(DingTalkSendStatus.INVALID_RESPONSE, httpStatus)
     // 服务响应 errMsg 也可能回显输入；只输出协议错误码，不转发服务端正文。
     return DingTalkSendResult(if (code == 0) DingTalkSendStatus.SUCCESS else DingTalkSendStatus.REJECTED, httpStatus, code)
