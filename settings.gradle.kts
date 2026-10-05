@@ -26,4 +26,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "diagnostics"
-include(":diagnostics-core", ":diagnostics-dingtalk")
+include(":diagnostics-core", ":diagnostics-dingtalk", ":diagnostics-ktor", ":diagnostics-okhttp")

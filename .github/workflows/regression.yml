@@ -1,0 +1,112 @@
+name: Component regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Immutable release tag to verify (empty runs source regression)
+        type: string
+        required: false
+permissions:
+  contents: read
+env:
+  # 此版 Native 下载器使用 URLConnection 默认超时；阻塞读取必须退出，才能进入其已有续传重试。
+  JAVA_TOOL_OPTIONS: -Djava.security.properties=${{ github.workspace }}/scripts/ci-java.security -Dsun.net.client.defaultConnectTimeout=30000 -Dsun.net.client.defaultReadTimeout=60000
+concurrency:
+  group: regression-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+defaults:
+  run:
+    shell: bash
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - run: |
+          python3 scripts/test-check-maven.py
+          python3 scripts/test-jitpack-metadata.py
+          python3 scripts/test-check-public-maven.py
+          bash -n scripts/archive-prebuilt.sh scripts/ci-release.sh jitpack-install.sh
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+      - run: bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:jvmTest :diagnostics-core:testDebugUnitTest :diagnostics-dingtalk:jvmTest :diagnostics-dingtalk:testDebugUnitTest :diagnostics-ktor:jvmTest :diagnostics-ktor:testDebugUnitTest :diagnostics-okhttp:jvmTest :diagnostics-okhttp:compileDebugKotlinAndroid --no-daemon --max-workers=1
+      - run: python3 scripts/assert-test-results.py diagnostics-core/build/test-results/jvmTest diagnostics-dingtalk/build/test-results/jvmTest diagnostics-ktor/build/test-results/jvmTest diagnostics-okhttp/build/test-results/jvmTest diagnostics-core/build/test-results/testDebugUnitTest diagnostics-dingtalk/build/test-results/testDebugUnitTest diagnostics-ktor/build/test-results/testDebugUnitTest
+  native:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - run: |
+          if [[ "$(uname -m)" == arm64 ]]; then simulator=iosSimulatorArm64Test; else simulator=iosX64Test; fi
+          # 复用同一 Gradle JVM 的成功 DNS 缓存；编译后的新进程曾在测试启动前解析失败。
+          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:compileKotlinIosArm64 :diagnostics-dingtalk:compileKotlinIosArm64 :diagnostics-ktor:compileKotlinIosArm64 :diagnostics-core:compileKotlinOhosArm64 :diagnostics-dingtalk:compileKotlinOhosArm64 :diagnostics-ktor:compileKotlinOhosArm64 ":diagnostics-core:$simulator" ":diagnostics-dingtalk:$simulator" ":diagnostics-ktor:$simulator" --no-daemon --max-workers=1
+          python3 scripts/assert-test-results.py "diagnostics-core/build/test-results/$simulator" "diagnostics-dingtalk/build/test-results/$simulator" "diagnostics-ktor/build/test-results/$simulator"
+      - run: xcrun --sdk iphonesimulator swiftc -typecheck -target "$(uname -m)-apple-ios14.0-simulator" -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" ios-support/*.swift
+  release-android:
+    if: github.event_name == 'pull_request' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ github.event.release.tag_name || inputs.version || '0.2.0-rc.5' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: ${{ contains(fromJSON('["0.1.0","0.2.0-rc.1","0.2.0-rc.2","0.2.0-rc.3","0.2.0-rc.4","0.2.0-rc.5"]'), env.VERSION) && '21' || '17' }}
+          cache: gradle
+      - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+      - run: bash scripts/ci-release.sh
+      - run: |
+          network=true
+          case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
+          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer jvmTest testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
+  release-native:
+    if: github.event_name == 'pull_request' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ github.event.release.tag_name || inputs.version || '0.2.0-rc.5' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - run: bash scripts/ci-release.sh
+      - run: |
+          network=true
+          case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
+          if [[ "$(uname -m)" == arm64 ]]; then simulator=linkDebugFrameworkIosSimulatorArm64; else simulator=linkDebugFrameworkIosX64; fi
+          bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
