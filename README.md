@@ -2,9 +2,7 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前 Maven **0.2.0-rc.4**（`diagnostics-core` / `diagnostics-dingtalk`）：修复 iOS 小数秒 timestamp 的毫秒转换，补充快照变化检测、通知 transport 生命周期和非法响应回归，完善公共 API 注释。**已发布；JitPack、公开产物校验与干净远程消费通过**。Swift Package / Git Pod 继续使用已验 `0.2.0-rc.1`；本库无 HAR。以下 rc.3 及更早版本记录保留为历史验收。
-
-已发布 Maven **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档、全变体 HTTP 与新版本真实远程消费已通过；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版历史记录和不可变资产保留；本库无 HAR。见 [当前 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.3)。
+候选 Maven **0.2.0-rc.5**（`diagnostics-core` / `diagnostics-dingtalk`）：补齐通知模块 OHOS Curl/HMAC，实现响应字节上限、严格错误码类型及负快照大小校验。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。新版本发布与远程消费结果见 [完整审查](docs/完整审查.md)；以下旧版本记录仅作为历史证据。
 
 ## 支持范围
 
@@ -103,7 +101,7 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.4")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.5")
 ```
 
 系统采集独立启用。iOS 原生包用根 `Package.swift` 的 `GYDiagnosticsNative` product，或 `pod "GYDiagnosticsNative", :path => "本库路径"`。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
@@ -140,7 +138,7 @@ if (batch.files.isNotEmpty()) {
 
 ## 0.2.0-rc.2 机制扩展
 
-本版将 Android 唯一日志写入队列/flush/有界 Throwable、同一 store 的历史批次恢复、只读枚举/尾读/流式 ZIP 与文本导出、iOS 中立报告解析、Ktor 有界记录移入组件。可选 `diagnostics-dingtalk` 独立提供 Android/iOS HTTPS/HMAC/替身可测传输；core 不依赖通知渠道。业务准入、文案与凭据仍在宿主。API、迁移例子与可删除宿主主体见[机制接入](docs/机制接入.md)。这些 API 从 `0.2.0-rc.2` 开始提供。
+本版将 Android 唯一日志写入队列/flush/有界 Throwable、同一 store 的历史批次恢复、只读枚举/尾读/流式 ZIP 与文本导出、iOS 中立报告解析、Ktor 有界记录移入组件。可选 `diagnostics-dingtalk` 独立提供 Android/iOS/JVM/OHOS HTTPS/HMAC/替身可测传输；core 不依赖通知渠道。业务准入、文案与凭据仍在宿主。API、迁移例子与可删除宿主主体见[机制接入](docs/机制接入.md)。这些 API 从 `0.2.0-rc.2` 开始提供。
 
 ## 文档与反馈
 

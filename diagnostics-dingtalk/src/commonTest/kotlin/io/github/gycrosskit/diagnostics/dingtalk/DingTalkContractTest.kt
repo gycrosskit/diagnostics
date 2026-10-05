@@ -36,7 +36,7 @@ class DingTalkContractTest {
         val content = payload["markdown"] as kotlinx.serialization.json.JsonObject
         assertEquals(title, (content["title"] as kotlinx.serialization.json.JsonPrimitive).content)
         assertEquals(markdown, (content["text"] as kotlinx.serialization.json.JsonPrimitive).content)
-        for (malformed in listOf("{}", "[]", "null", """{"errcode":{}}""", """{"errcode":"bad"}""")) {
+        for (malformed in listOf("{}", "[]", "null", """{"errcode":{}}""", """{"errcode":"bad"}""", """{"errcode":"0"}""")) {
             assertEquals(DingTalkSendStatus.INVALID_RESPONSE, decodeDingTalkWebhookResponse(malformed).status)
         }
     }
@@ -49,6 +49,22 @@ class DingTalkContractTest {
             endpoint.replace("https://", "https://user@"), "$endpoint&sign=old", "$endpoint#fragment")) {
             assertFailsWith<IllegalArgumentException> { signedDingTalkWebhook(invalid, "test-secret", 1) }
         }
+    }
+    @Test fun rfc4231HmacVectorsIncludeLongKey() {
+        assertEquals("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
+            hmacSha256(ByteArray(20) { 0x0b }, "Hi There".encodeToByteArray()).toHexString())
+        assertEquals("60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54",
+            hmacSha256(ByteArray(131) { 0xaa.toByte() }, "Test Using Larger Than Block-Size Key - Hash Key First".encodeToByteArray()).toHexString())
+    }
+    @Test fun multibyteResponseLimitIsInBytes() = runTest {
+        val start = """{"errcode":0,"padding":"""" + "中".repeat(5400)
+        val suffix = "\"}"
+        val body = start + "x".repeat(16 * 1024 + 1 - start.encodeToByteArray().size - suffix.length) + suffix
+        assertEquals(16 * 1024 + 1, body.encodeToByteArray().size)
+        val transport = HttpClient(MockEngine { respond(body, HttpStatusCode.OK) })
+        val client = DingTalkWebhookClient(endpoint, "test-secret", transport)
+        try { assertEquals(DingTalkSendStatus.INVALID_RESPONSE, client.send("x", "x").status) }
+        finally { client.close(); transport.close() }
     }
     @Test fun fakeResponseAndCloseAndConfigurationNeverSendRealMessages() = runTest {
         var calls = 0
