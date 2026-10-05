@@ -2,7 +2,7 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-候选 Maven **0.2.0-rc.5**（`diagnostics-core` / `diagnostics-dingtalk`）：补齐通知模块 OHOS Curl/HMAC，实现响应字节上限、严格错误码类型及负快照大小校验。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。新版本发布与远程消费结果见 [完整审查](docs/完整审查.md)；以下旧版本记录仅作为历史证据。
+预发布 Maven **0.2.0-rc.5**（`diagnostics-core` / `diagnostics-dingtalk`）：补齐通知模块 OHOS Curl/HMAC，实现响应字节上限、严格错误码类型及负快照大小校验。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。新标签Release/JitPack全部文件及core+notify新目录远程消费、iOS Framework与OHOS最终.so链接已通过，结果见 [完整审查](docs/完整审查.md)；以下旧版本记录仅作为历史证据。
 
 ## 支持范围
 
@@ -156,7 +156,7 @@ if (batch.files.isNotEmpty()) {
 
 本轮 JVM 23 项、Android 18 项测试及 Android 编译通过，含真实文件失败、恢复与超时迟到 barrier；未触发真实通知或设备崩溃。
 
-| 当前候选渠道 | 配套版本 |
+| 该版本配套渠道 | 配套版本 |
 | --- | --- |
 | Maven / Swift Package / Git Pod | `0.2.0-rc.3` / `0.2.0-rc.1` / `0.2.0-rc.1` |
 
