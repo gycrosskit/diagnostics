@@ -1,7 +1,7 @@
 plugins { kotlin("multiplatform"); id("com.android.library"); `maven-publish` }
 kotlin {
     androidTarget { publishLibraryVariants("release") }
-    jvm()
+    jvm { compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     sourceSets {
         commonMain.dependencies { api(project(":diagnostics-core")) }
         val jvmSharedMain by creating {

@@ -22,7 +22,9 @@ with tarfile.open(archive) as bundle:
 EXTRACT
 modules=diagnostics-core,diagnostics-dingtalk
 if [[ "$VERSION" == 0.2.0-rc.6 ]]; then modules="$modules,diagnostics-ktor,diagnostics-okhttp"; fi
-python3 verification/check-maven.py "$staging/maven" com.github.gycrosskit.diagnostics "$VERSION" "$modules" ios_arm64,ios_x64,ios_simulator_arm64,ohos_arm64
+jvm_limit=()
+if [[ "$VERSION" == 0.2.0-rc.6 ]]; then jvm_limit=(--max-jvm-major 61); fi
+python3 verification/check-maven.py "$staging/maven" com.github.gycrosskit.diagnostics "$VERSION" "$modules" ios_arm64,ios_x64,ios_simulator_arm64,ohos_arm64 "${jvm_limit[@]}"
 
 publications="$(python3 - "$staging/maven" "$VERSION" <<'PUBLICATIONS'
 from pathlib import Path

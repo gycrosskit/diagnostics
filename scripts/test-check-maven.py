@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import zipfile
 import tempfile
 import unittest
 
@@ -63,6 +64,24 @@ class CheckerTest(unittest.TestCase):
                 result = subprocess.run([sys.executable, str(checker), str(root), GROUP, VERSION, 'demo', 'ios_arm64', 'demo,demo-iosarm64', '--jvm-only'], text=True, capture_output=True)
                 self.assertEqual(result.returncode == 0, damage == 'none', result.stdout + result.stderr)
                 if damage == 'unexpected_publication': self.assertIn('Missing or unexpected publications', result.stderr)
+
+
+    def test_jvm_runtime_bytecode_limit(self):
+        checker = Path(__file__).resolve().parents[1] / 'verification/check-maven.py'
+        for major in (61, 65):
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); module = stage(root)
+                metadata = json.loads(module.read_text())
+                artifact = next(module.parent.glob('*.jar'))
+                with zipfile.ZipFile(artifact, 'w') as jar:
+                    jar.writestr('Example.class', b'\xca\xfe\xba\xbe\x00\x00' + major.to_bytes(2, 'big'))
+                variant = metadata['variants'][0]
+                variant['attributes'] = {'org.jetbrains.kotlin.platform.type': 'jvm'}
+                entry = variant['files'][0]; entry['size'] = artifact.stat().st_size
+                entry.update({algorithm: hashlib.new(algorithm, artifact.read_bytes()).hexdigest() for algorithm in ('md5', 'sha1', 'sha256', 'sha512')})
+                module.write_text(json.dumps(metadata)); checksums(module); checksums(artifact)
+                result = subprocess.run([sys.executable, str(checker), str(root), GROUP, VERSION, 'demo', 'ios_arm64', '--jvm-only', '--max-jvm-major', '61'], text=True, capture_output=True)
+                self.assertEqual(result.returncode == 0, major == 61, result.stdout + result.stderr)
 
 
 if __name__ == '__main__': unittest.main()

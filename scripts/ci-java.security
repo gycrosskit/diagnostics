@@ -1,2 +1,2 @@
-networkaddress.cache.ttl=600
+networkaddress.cache.ttl=3600
 networkaddress.cache.negative.ttl=0

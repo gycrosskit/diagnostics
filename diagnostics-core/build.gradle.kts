@@ -1,7 +1,7 @@
 plugins { kotlin("multiplatform"); id("com.android.library"); `maven-publish` }
 kotlin {
     androidTarget { publishLibraryVariants("release") }
-    jvm()
+    jvm { compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     iosArm64(); iosSimulatorArm64(); iosX64(); ohosArm64()
     applyDefaultHierarchyTemplate()
     sourceSets {

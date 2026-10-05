@@ -86,7 +86,7 @@ jobs:
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ env.VERSION == '0.2.0-rc.5' && '21' || '17' }}
           cache: gradle
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
       - run: bash scripts/ci-release.sh
