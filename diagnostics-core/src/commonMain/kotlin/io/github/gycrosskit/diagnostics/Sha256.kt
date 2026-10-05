@@ -57,4 +57,5 @@ internal class Sha256 {
             0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2).map { it.toInt() }.toIntArray()
     }
 }
+/** 同步计算标准 SHA-256 十六进制内容标识；不作为文件删除授权，也不保存输入。 */
 fun diagnosticFingerprint(bytes: ByteArray): String = Sha256().apply { update(bytes) }.finish()

@@ -15,7 +15,11 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
-/** 唯一有界后台写入队列。宿主先格式化/脱敏，再 append；flush barrier 报告之前的写入失败。 */
+/**
+ * 实例独占的有界后台写入队列，append 可跨线程调用，flush barrier 报告此前写入失败。
+ * 宿主先格式化/脱敏并停止生产日志后 close；不关闭共享 store。
+ * @param capacity 排队任务数上限，必须大于 0；队列满时 append/flush 的提交直接失败。
+ */
 class DiagnosticWriter(private val store: DiagnosticStore, capacity: Int = 1024) : Closeable {
     @Volatile private var writerThread: Thread? = null
     private class WriteFailure(val cause: Throwable) {
@@ -27,6 +31,7 @@ class DiagnosticWriter(private val store: DiagnosticStore, capacity: Int = 1024)
             Thread(task, "GYDiagnosticWriter").apply { isDaemon = true; writerThread = this }
         })
 
+    /** 提交脱敏后的日志，不等待落盘；队列满/关闭时抛出 RejectedExecutionException。 */
     fun append(line: String) {
         queue.execute {
             try {
@@ -36,7 +41,7 @@ class DiagnosticWriter(private val store: DiagnosticStore, capacity: Int = 1024)
         }
     }
 
-    /** timeout 和中断均向宿主报告；不会把有失败的批次伪装成已刷新。 */
+    /** 等待此前任务；timeoutMillis 必须大于 0，超时/中断/落盘失败抛 IOException，中断标志保留。 */
     fun flush(timeoutMillis: Long = 5000) {
         require(timeoutMillis > 0)
         var observedFailure: WriteFailure? = null
@@ -53,7 +58,10 @@ class DiagnosticWriter(private val store: DiagnosticStore, capacity: Int = 1024)
     override fun close() { try { flush() } finally { queue.shutdown() } }
 }
 
-/** 不调用 stackTraceToString/printStackTrace；cause/suppressed 按 identity 去环且 UTF-8 有界。 */
+/**
+ * 同步生成 UTF-8 有界异常原文，cause/suppressed 按 identity 去环；不安装 handler 或写文件。
+ * timestampMillis 是 Unix 毫秒，maxBytes 含 truncationMarker；宿主决定保留/脱敏与准入。
+ */
 fun boundedThrowableReport(
     thread: Thread,
     throwable: Throwable,

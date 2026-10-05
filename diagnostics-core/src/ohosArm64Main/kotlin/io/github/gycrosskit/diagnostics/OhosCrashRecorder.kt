@@ -4,7 +4,11 @@ import cnames.structs.HiAppEvent_Watcher
 import kotlinx.cinterop.*
 import platform.PerformanceAnalysisKit.HiAppEvent.*
 
-/** API 12+ 的系统延迟 APP_CRASH 事件原文。仅显式创建后采集，不导入 external_log 附件。 */
+/**
+ * API 12+ 系统延迟 APP_CRASH 原文，隐私准入后显式创建，不导入 external_log 附件。
+ * 宿主串行创建/close，store 由宿主拥有；回调在线程不确定的系统入口同步落盘，成功后才通知。
+ * 进程内只有一个 watcher，成功安装后 close 不允许重装，避免无身份的迟回调污染新实例。
+ */
 @OptIn(ExperimentalForeignApi::class)
 class OhosCrashRecorder(store: DiagnosticStore, onReportStored: ((ReportKind) -> Unit)? = null) {
     private var watcher: CPointer<HiAppEvent_Watcher>? = null

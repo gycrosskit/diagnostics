@@ -11,7 +11,14 @@ import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-/** 私有滚动日志和稳定诊断批次。一个目录只允许一个进程中的一个实例持有。 */
+/**
+ * 私有滚动日志和稳定诊断批次。一个目录只允许一个进程中的一个实例持有。
+ * 方法使用实例锁同步串行 I/O，不响应协程取消；宿主应在有界后台队列调用并先脱敏。
+ * 平台采集器/写入队列停止后 close；本实例不代替其他目录/进程提供文件锁。
+ * @param rootDirectory 专属私有绝对路径，不得含父目录跳转。
+ * @property limits 日志/报告/冻结批次容量，构造后不变。
+ * @param legacySources 宿主授权的历史源；确认成功仅删除逐字节仍匹配的原件。
+ */
 @OptIn(ExperimentalTime::class)
 class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: String, val limits: DiagnosticLimits = DiagnosticLimits(), legacySources: List<LegacyDiagnosticSource> = emptyList()) {
     private val lock = StoreLock()
@@ -165,6 +172,7 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
         acknowledgeLocked(batch)
     }
 
+    /** 活动与冻结批次中的报告总数；超容量不会删除待确认报告。 */
     @Throws(Exception::class)
     fun pendingReportCount(): Int = lock.locked {
         checkOpen()
@@ -179,6 +187,7 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
             legacySources.flatMap { DiagnosticFiles.list(it.directory, it.prefixes) }
     }
 
+    /** 只打开 currentFiles 中仍存在且未缩短的文件快照；调用方负责关闭 reader。 */
     @Throws(Exception::class)
     fun openSnapshot(file: DiagnosticSnapshotFile): DiagnosticFileReader = lock.locked {
         checkOpen()
@@ -187,6 +196,7 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
         DiagnosticFiles.openSnapshot(file)
     }
 
+    /** 读取授权快照末尾最多 1..1 MiB 字节；可丢弃首个截断行，不冻结/确认批次。 */
     @Throws(Exception::class)
     fun readTail(file: DiagnosticSnapshotFile, maxBytes: Int, dropPartialFirstLine: Boolean = false): ByteArray = lock.locked {
         checkOpen()
@@ -323,7 +333,15 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
     private fun newId() = Clock.System.now().toEpochMilliseconds().toString(16) + Random.nextLong().toULong().toString(16)
 }
 
-/** maxLogFiles 包括活动卷。pending 日志不参与滚动淘汰，最多额外占一批容量。 */
+/**
+ * pending 日志不参与滚动淘汰，最多额外占一批容量；非法配置在构造时拒绝。
+ * @property maxLogBytes 每卷最大 UTF-8 字节数（64..16 MiB），包括换行/截断标记。
+ * @property maxLogFiles 卷数（1..100），包括活动卷。
+ * @property maxReportBytes 每份报告最大 UTF-8 字节数（64..16 MiB）。
+ * @property maxReports 活动加冻结报告总数上限（1..100）。
+ * @property maxBatchBytes 每个冻结批次的字节数上限，必须大于 0。
+ * @property maxBatchFiles 每个冻结批次的文件数上限（1..200）。
+ */
 data class DiagnosticLimits @Throws(IllegalArgumentException::class) constructor(
     val maxLogBytes: Int = 5 * 1024 * 1024,
     val maxLogFiles: Int = 5,
@@ -340,22 +358,40 @@ data class DiagnosticLimits @Throws(IllegalArgumentException::class) constructor
     }
 }
 
+/** 报告存储分类；内容和启用策略由宿主提供，SYSTEM 不代表已经解析。 */
 enum class ReportKind { CRASH, HANG, SYSTEM }
+/**
+ * 冻结批次文件的不可变描述，不公开私有目录。
+ * @property name 短文件名，同时作为批次内文件 id。
+ * @property size 冻结时的字节数，读取必须与该长度一致。
+ */
 data class DiagnosticFile(val name: String, val size: Long) {
     /** 与批次 id 共同组成稳定标识；不含路径。 */
     val id: String get() = name
 }
+/**
+ * 实例拥有的冻结批次回执，重启后须重新 prepareBatch 获取 owner；不能跨实例确认。
+ * @property id 批次稳定标识，重试复用；空批次为 empty。
+ * @property files 按文件名排序的只读快照，不含文件路径。
+ * @property totalBytes 所有文件字节数之和。
+ */
 class DiagnosticBatch internal constructor(val id: String, files: List<DiagnosticFile>, internal val owner: Any) {
     val files: List<DiagnosticFile> = files.toList()
     val totalBytes: Long get() = files.sumOf { it.size }
 }
+/**
+ * 本实例成功导出的 TAR 回执；确认前会核对整个归档与原件。
+ * @property path 对外分享/上传用的归档绝对路径，宿主负责分享权限与归档删除。
+ * @property batch 本次导出的冻结批次，后来产生的日志不属于此回执。
+ */
 class DiagnosticExport internal constructor(val path: String, val batch: DiagnosticBatch, internal val owner: Any)
 
-/** 有界流式 reader；不依赖 TAR 格式，同一实例的 read/close 串行。 */
+/** 有界同步 reader；read/close 串行，文件句柄由调用方在 finally 关闭，不随 store.close 自动关闭。 */
 class DiagnosticFileReader internal constructor(private val source: Source, private var remaining: Long, private val exactLength: Boolean = true) {
     private val lock = StoreLock()
     private var closed = false
 
+    /** 读取 1..65536 字节的块；耗尽返回空数组，关闭后拒绝读取，冻结文件长度变化抛错。 */
     @Throws(Exception::class)
     fun read(maxBytes: Int = 16 * 1024): ByteArray = lock.locked {
         check(!closed) { "reader 已关闭" }
@@ -367,6 +403,7 @@ class DiagnosticFileReader internal constructor(private val source: Source, priv
         bytes
     }
 
+    /** 幂等释放文件句柄；不确认或删除原件。 */
     @Throws(Exception::class)
     fun close() = lock.locked {
         if (!closed) {

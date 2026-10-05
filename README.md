@@ -2,7 +2,9 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-当前 Maven 发布候选 **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档、全变体 HTTP 与新版本真实远程消费已通过；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版历史记录和不可变资产保留；本库无 HAR。见 [当前 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.3)。
+当前 Maven 候选 **0.2.0-rc.4**（`diagnostics-core` / `diagnostics-dingtalk`）：修复 iOS 小数秒 timestamp 的毫秒转换，补充快照变化检测、通知 transport 生命周期和非法响应回归，完善公共 API 注释。**发布准备中，完成远程验收后更新**。Swift Package / Git Pod 继续使用已验 `0.2.0-rc.1`；本库无 HAR。以下 rc.3 及更早版本记录保留为历史验收。
+
+已发布 Maven **0.2.0-rc.3** 修复 writer 未报告失败及迟 barrier 边界，完整归档、全变体 HTTP 与新版本真实远程消费已通过；原生 Swift Package / Git Pod 继续使用已验收 **0.2.0-rc.1**，原生采集源码与新 Maven 标签相比未改变。旧 Maven `0.2.0-rc.2` 的 JitPack `status=ok`，13 个 core / 可选通知模块与 Release SHA 已验收；远程消费者与设备验收分别记录于 [VALIDATION](VALIDATION.md)。旧版历史记录和不可变资产保留；本库无 HAR。见 [当前 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.3)。
 
 ## 支持范围
 
@@ -14,6 +16,79 @@
 | JVM | `DiagnosticStore` | 文件存储，无系统采集器 |
 
 Kotlin **2.2.21-1.0.0** OHOS 工具链；依赖包含 OHOS 变体的 `kotlinx-io-core:0.9.0-1.0.0`。不依赖 Compose、Kuikly 或业务模块。
+
+## 架构与调用流程
+
+核心存储和平台采集分开启用；下面以稳定批次导出为主线，平台采集器只负责把报告交给存储。
+
+```mermaid
+flowchart TB
+    Host["宿主<br/>准入、脱敏、后台调度"] --> Store["diagnostics-core<br/>DiagnosticStore"]
+    Capture["可选平台采集<br/>Android JVM / ANR<br/>iOS MetricKit / NSException<br/>OHOS HiAppEvent"] --> Store
+    Store --> Files["应用私有日志、报告与 pending"]
+    Store --> Batch["稳定批次 / TAR / 逐文件 reader"]
+    Batch --> Delivery["宿主分享 / 上传<br/>确认完成"]
+    Host -. "按需接入通知" .-> DingTalk["diagnostics-dingtalk"]
+```
+
+```mermaid
+sequenceDiagram
+    participant H as 宿主后台队列
+    participant S as DiagnosticStore
+    participant F as 私有文件系统
+    H->>S: append / recordReport
+    S->>F: 串行有界落盘
+    H->>S: prepareBatch()
+    S->>F: 复用 pending 或冻结源文件
+    S-->>H: DiagnosticBatch（id、files、owner）
+    H->>S: exportBatch(batch, directory)
+    S->>F: 流式写临时 TAR，成功后公开
+    S-->>H: DiagnosticExport
+    H->>H: 分享 / 上传
+    alt 宿主确认完成
+        H->>S: deleteExported(receipt)
+        S->>F: 核验 owner、批次与归档后删除 pending
+    else 失败或未确认
+        Note over H,F: 保留 pending，重试同一批次
+    end
+```
+
+```mermaid
+classDiagram
+    class DiagnosticStore {
+        +prepareBatch() DiagnosticBatch
+        +exportBatch(batch, directory) DiagnosticExport
+        +openFile(batch, fileId) DiagnosticFileReader
+        +deleteExported(export)
+        +close()
+    }
+    class DiagnosticLimits
+    class DiagnosticBatch {
+        +String id
+        +Long totalBytes
+    }
+    class DiagnosticFile {
+        +String name
+        +Long size
+    }
+    class DiagnosticExport {
+        +String path
+    }
+    class DiagnosticFileReader {
+        +read(maxBytes) ByteArray
+        +close()
+    }
+    DiagnosticStore *-- DiagnosticLimits
+    DiagnosticStore ..> DiagnosticBatch : 创建并校验 owner
+    DiagnosticBatch *-- DiagnosticFile
+    DiagnosticExport --> DiagnosticBatch
+    DiagnosticStore ..> DiagnosticExport
+    DiagnosticStore ..> DiagnosticFileReader
+```
+
+源码：[存储、批次与回执类型](diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt)、[采集落盘门控](diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ReportRecorder.kt)、[Android 采集](diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AndroidCrashRecorder.kt)、[iOS 采集](ios-support/GYDiagnosticCollector.swift)、[OHOS 采集](diagnostics-core/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/OhosCrashRecorder.kt)。
+
+`DiagnosticStore` 是同步实例内串行 I/O；通用入口由宿主安排后台队列，Android/JVM 可选 [DiagnosticWriter](diagnostics-core/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticWriter.kt) 才持有写入线程。批次/回执不能跨实例使用，reader 要单独关闭；先撤回平台采集，再关闭 store。iOS 新旧 MetricKit 入口共享[进程 owner](ios-support/MetricKitOwnership.swift)，OHOS watcher 关闭后不能重新安装；系统投递不等于即时上传。
 
 ## 安装
 
@@ -28,7 +103,7 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.3")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.4")
 ```
 
 系统采集独立启用。iOS 原生包用根 `Package.swift` 的 `GYDiagnosticsNative` product，或 `pod "GYDiagnosticsNative", :path => "本库路径"`。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。

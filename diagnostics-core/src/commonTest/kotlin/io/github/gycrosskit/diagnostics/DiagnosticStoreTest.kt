@@ -161,6 +161,40 @@ class DiagnosticStoreTest {
         assertFailsWith<IllegalArgumentException> { DiagnosticLimits(maxLogBytes = 0) }
     }
 
+    @Test fun activeSnapshotReadsOnlyCapturedLengthAndRejectsShortenedSource() = inDirectory { root ->
+        val store = DiagnosticStore(root.toString(), small)
+        try {
+            store.append("captured")
+            val snapshot = store.currentFiles().single()
+            store.append("later")
+            val reader = store.openSnapshot(snapshot)
+            try {
+                assertEquals("captured\n", reader.read().decodeToString())
+                assertTrue(reader.read().isEmpty())
+            } finally { reader.close() }
+            fs.sink(Path(snapshot.path)).buffered().use { it.writeString("short") }
+            assertFails { store.openSnapshot(snapshot) }
+            assertFails { store.readTail(snapshot, 4) }
+            assertEquals("short", read(Path(snapshot.path)))
+        } finally { store.close() }
+    }
+
+    @Test fun frozenReaderDetectsGrowthWithoutAcknowledgingOrDeletingEvidence() = inDirectory { root ->
+        val store = DiagnosticStore(root.toString(), small)
+        try {
+            store.append("frozen")
+            val batch = store.prepareBatch()
+            val file = batch.files.single()
+            val reader = store.openFile(batch, file.id)
+            try {
+                fs.sink(Path(root, "pending", file.name), append = true).buffered().use { it.writeString("tampered") }
+                assertFails { reader.read() }
+                assertFails { store.acknowledgeBatch(batch) }
+                assertEquals("frozen\ntampered", read(Path(root, "pending", file.name)))
+            } finally { reader.close() }
+        } finally { store.close() }
+    }
+
     private fun read(path: Path) = fs.source(path).buffered().use { it.readString() }
     private fun inDirectory(block: (Path) -> Unit) {
         val root = Path(SystemTemporaryDirectory, "gycrosskit-test-${Random.nextLong().toULong()}")

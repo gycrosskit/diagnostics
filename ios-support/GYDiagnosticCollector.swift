@@ -1,9 +1,12 @@
 import Foundation
 import MetricKit
 
-/// 保存系统原始 JSON；目录、启用条件、摘要、通知和上传由宿主负责。
+/// 保存系统原始 JSON；启用条件、隐私筛选、摘要、通知和上传由宿主负责。
+/// start/stop 主线程串行，MetricKit 在 utility 队列落盘，NSException 在异常线程同步写入。
+/// 每类保留最新 10 份；不捕获 signal，不保证系统报告即时递送；宿主停止后释放实例。
 @available(iOS 14.0, *)
 public final class GYDiagnosticCollector: NSObject, MXMetricManagerSubscriber {
+    /// 宿主专属私有文件 URL；路径不能含公开用户信息，备份策略由宿主设置。
     public let directory: URL
     private let queue = DispatchQueue(label: "io.github.gycrosskit.diagnostics.collector", qos: .utility)
     private let stateLock = NSLock()

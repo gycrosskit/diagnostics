@@ -11,12 +11,14 @@ public final class GYMetricKitRecorder: NSObject, MXMetricManagerSubscriber {
     private let stateLock = NSLock()
     private var started = false
 
+    /// 在 utility 队列传递原始 JSON，不产生落盘通知；record 不得同步等待主线程或调用 stop。
     public init(record: @escaping (String) -> Void) {
         self.record = { text in record(text); return false }
         self.onReportStored = nil
     }
 
-    /// record 只在报告实际落盘后返回 true；通知不携带诊断原文。
+    /// record 在 utility 队列仅实际落盘后返回 true，再同队列通知；原文授权/脱敏由宿主负责。
+    /// 两个回调不得同步等待主线程或调用 stop；宿主先在主线程 stop，再关闭 Store 和释放实例。
     public init(record: @escaping (String) -> Bool, onReportStored: @escaping () -> Void) {
         self.record = record
         self.onReportStored = onReportStored

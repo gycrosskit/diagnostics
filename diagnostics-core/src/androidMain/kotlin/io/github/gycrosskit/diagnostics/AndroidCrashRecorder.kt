@@ -3,11 +3,17 @@ package io.github.gycrosskit.diagnostics
 import android.content.Context
 
 
-/** 使用 Android 不参与 Auto Backup 的私有目录；不安装任何采集器。 */
+/** 使用 noBackupFilesDir 私有目录，同步创建 Store；后台调用，不安装采集器，宿主拥有并负责 close。 */
 fun androidDiagnosticStore(context: Context, limits: DiagnosticLimits = DiagnosticLimits(), legacySources: List<LegacyDiagnosticSource> = emptyList()): DiagnosticStore =
     DiagnosticStore(java.io.File(context.noBackupFilesDir, "gycrosskit-diagnostics").absolutePath, limits, legacySources)
 
-/** 仅记录 JVM 未捕获异常，不捕获 native signal/ANR。宿主明确创建并持有，close 撤回自己的 handler。 */
+/**
+ * 仅记录 JVM 未捕获异常，不捕获 native signal/ANR；宿主明确准入后创建并持有进程唯一实例。
+ * 回调在发生异常的线程执行，不携带/记录凭据；原文隐私由宿主决定。
+ * @param flush 系统终止前同步刷盘，失败不阻止原 handler；须有界且不能等待主线程。
+ * @param onUncaughtException 原始异常通知，宿主不得抛错或无限等待。
+ * @param onReportStored 仅成功保存报告后通知，容量满/文件失败不通知。
+ */
 class AndroidCrashRecorder(
     store: DiagnosticStore,
     flush: (() -> Unit)? = null,
@@ -30,6 +36,7 @@ class AndroidCrashRecorder(
             Thread.setDefaultUncaughtExceptionHandler(handler)
         }
     }
+    /** 先撤销报告回调，仅仍是默认 handler 时恢复原 handler；不关闭共享 Store。 */
     override fun close() {
         reports.close()
         synchronized(installationLock) {

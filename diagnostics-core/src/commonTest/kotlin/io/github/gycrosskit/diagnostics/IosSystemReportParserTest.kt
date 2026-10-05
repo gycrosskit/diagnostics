@@ -1,6 +1,15 @@
 package io.github.gycrosskit.diagnostics
 import kotlin.test.*
 class IosSystemReportParserTest {
+    @Test fun nativeExceptionFractionalSecondsPreserveMillisecondsAndInvalidTimeUsesFallback() {
+        for ((timestamp, expected) in listOf("1700000000.125" to 1700000000125L, "-0.125" to -125L,
+            "1700000000125" to 1700000000125L, "\"2023-11-14T22:13:20.125Z\"" to 1700000000125L,
+            "\"NaN\"" to 17L, "\"Infinity\"" to 17L, "1e100" to 17L)) {
+            val report = IosSystemReportParser.parse("""{"timestamp":$timestamp,"name":"NSException"}""",
+                SystemReportSource.NS_EXCEPTION, fallbackTimestampMillis = 17).reports.single()
+            assertEquals(expected, report.timestampMillis, timestamp)
+        }
+    }
     @Test fun parsesAllFiveArraysAndNeutralFieldsWithBounds() {
         val json = """{"timeStampEnd":"2026-09-30T08:00:00Z","payload":{
           "crashDiagnostics":[{"terminationReason":"watchdog","pid":42,"callStackTree":{"frames":[1]}}],
