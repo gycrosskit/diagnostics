@@ -8,7 +8,11 @@ for (int attempt = 1; attempt <= 3; attempt++) {
         break
     } catch (java.net.UnknownHostException failure) {
         println "CI DNS lookup failed for ${ciDnsHost} (attempt ${attempt}/3): ${failure.message}"
-        if (attempt == 3) throw failure
+        if (attempt == 3) {
+            // 缓存可能已满足构建；必须由 Gradle 的实际依赖解析决定是否失败。
+            println 'CI DNS warmup unavailable; continuing with normal Gradle resolution'
+            break
+        }
         Thread.sleep(1000)
     }
 }
