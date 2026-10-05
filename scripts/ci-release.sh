@@ -21,9 +21,11 @@ with tarfile.open(archive) as bundle:
     bundle.extractall(root)
 EXTRACT
 modules=diagnostics-core,diagnostics-dingtalk
-if [[ "$VERSION" == 0.2.0-rc.6 ]]; then modules="$modules,diagnostics-ktor,diagnostics-okhttp"; fi
 jvm_limit=()
-if [[ "$VERSION" == 0.2.0-rc.6 ]]; then jvm_limit=(--max-jvm-major 61); fi
+case "$VERSION" in
+  0.1.0|0.2.0-rc.[1-5]) ;; # 网络适配引入前的固定历史版本。
+  *) modules="$modules,diagnostics-ktor,diagnostics-okhttp"; jvm_limit=(--max-jvm-major 61) ;;
+esac
 python3 verification/check-maven.py "$staging/maven" com.github.gycrosskit.diagnostics "$VERSION" "$modules" ios_arm64,ios_x64,ios_simulator_arm64,ohos_arm64 "${jvm_limit[@]}"
 
 publications="$(python3 - "$staging/maven" "$VERSION" <<'PUBLICATIONS'

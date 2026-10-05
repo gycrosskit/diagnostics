@@ -2,9 +2,9 @@
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-预发布 Maven **0.2.0-rc.5**（`diagnostics-core` / `diagnostics-dingtalk`）：补齐通知模块 OHOS Curl/HMAC，实现响应字节上限、严格错误码类型及负快照大小校验。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。新标签Release/JitPack全部文件及core+notify新目录远程消费、iOS Framework与OHOS最终.so链接已通过，结果见 [完整审查](docs/完整审查.md)；以下旧版本记录仅作为历史证据。
+源码与 Maven 版本 **0.2.0-rc.6**：在 `diagnostics-core` / `diagnostics-dingtalk` 之外增加可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md)，统一关联、耗时、有界正文与脱敏；四模块 JVM 字节码目标固定 Java 17。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。
 
-候选升级：新增可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和 [自动回归门禁](docs/持续集成.md)，验证与发布正在进行；尚未改变上面已发布版本的验收结论。
+正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.6) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
 
 ## 支持范围
 
@@ -103,7 +103,7 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.5")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.6")
 ```
 
 系统采集独立启用。iOS 原生包用根 `Package.swift` 的 `GYDiagnosticsNative` product，或 `pod "GYDiagnosticsNative", :path => "本库路径"`。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。

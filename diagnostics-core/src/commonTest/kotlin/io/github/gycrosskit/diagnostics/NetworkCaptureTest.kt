@@ -67,6 +67,18 @@ class NetworkCaptureTest {
         assertEquals(2, store.records.value.size)
     }
 
+    @Test fun excessiveDepthIsRejectedBeforeParsingAndQuotedBracketsAreText() {
+        // 28 KiB 仍在允许的 Body 额度内；旧 parser 会在限深检查前耗尽调用栈。
+        assertNull(redactNetworkJson("[".repeat(14_000) + "0" + "]".repeat(14_000)))
+        assertNotNull(redactNetworkJson("[".repeat(64) + "0" + "]".repeat(64)))
+        assertNotNull(redactNetworkJson("[".repeat(65) + "]".repeat(65)))
+        assertNull(redactNetworkJson("[".repeat(66) + "]".repeat(66)))
+        val quoted = """{"text":"${"[".repeat(100)}\\\"${"]".repeat(100)}", "token":"private"}"""
+        val safe = assertNotNull(redactNetworkJson(quoted))
+        assertFalse(safe.contains("private"))
+        assertTrue(safe.contains("[".repeat(100)))
+    }
+
     @Test fun synchronousCollectorCanClearStoreWithoutDeadlock() {
         val store = NetworkLogStore<Unit>()
         val scope = CoroutineScope(Dispatchers.Unconfined)

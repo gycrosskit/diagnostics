@@ -106,6 +106,24 @@ class NetworkCall<C> internal constructor(
 
 /** 完整 JSON 文本脱敏；不能解析时丢弃，不输出可能包含未闭合敏感字段的文本片段。 */
 fun redactNetworkJson(body: String, sensitiveFields: Set<String> = emptySet()): String? {
+    // 当前 parser 的深层数组仍使用调用栈，须先限深。保留根 depth=0 的约定：最多 65 层容器，
+    // 第 65 层中的非空子值仍由下方 depth<=64 拒绝，空容器的既有行为不变。
+    var depth = 0
+    var quoted = false
+    var escaped = false
+    for (char in body) {
+        if (quoted) {
+            if (escaped) escaped = false
+            else when (char) {
+                '\\' -> escaped = true
+                '"' -> quoted = false
+            }
+        } else when (char) {
+            '"' -> quoted = true
+            '[', '{' -> if (++depth > 65) return null
+            ']', '}' -> depth--
+        }
+    }
     val denied = NETWORK_SENSITIVE_FIELDS + sensitiveFields.map(String::lowercase)
     fun redact(value: JsonElement, depth: Int): JsonElement {
         require(depth <= 64)
