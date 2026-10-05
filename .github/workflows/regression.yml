@@ -13,6 +13,8 @@ on:
         required: false
 permissions:
   contents: read
+env:
+  JAVA_TOOL_OPTIONS: -Djava.security.properties=${{ github.workspace }}/scripts/ci-java.security
 concurrency:
   group: regression-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -39,6 +41,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Check custom Kotlin plugin repository
+        run: curl -fsSL --connect-timeout 15 --max-time 30 -o /dev/null -w "Custom Kotlin marker HTTP %{http_code}\n" https://maven.eazytec-cloud.com/nexus/repository/maven-public/org/jetbrains/kotlin/multiplatform/org.jetbrains.kotlin.multiplatform.gradle.plugin/2.2.21-1.0.0/org.jetbrains.kotlin.multiplatform.gradle.plugin-2.2.21-1.0.0.pom
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
@@ -54,6 +58,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Check custom Kotlin plugin repository
+        run: curl -fsSL --connect-timeout 15 --max-time 30 -o /dev/null -w "Custom Kotlin marker HTTP %{http_code}\n" https://maven.eazytec-cloud.com/nexus/repository/maven-public/org/jetbrains/kotlin/multiplatform/org.jetbrains.kotlin.multiplatform.gradle.plugin/2.2.21-1.0.0/org.jetbrains.kotlin.multiplatform.gradle.plugin-2.2.21-1.0.0.pom
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
@@ -75,6 +81,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Check custom Kotlin plugin repository
+        run: curl -fsSL --connect-timeout 15 --max-time 30 -o /dev/null -w "Custom Kotlin marker HTTP %{http_code}\n" https://maven.eazytec-cloud.com/nexus/repository/maven-public/org/jetbrains/kotlin/multiplatform/org.jetbrains.kotlin.multiplatform.gradle.plugin/2.2.21-1.0.0/org.jetbrains.kotlin.multiplatform.gradle.plugin-2.2.21-1.0.0.pom
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
@@ -96,6 +104,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Check custom Kotlin plugin repository
+        run: curl -fsSL --connect-timeout 15 --max-time 30 -o /dev/null -w "Custom Kotlin marker HTTP %{http_code}\n" https://maven.eazytec-cloud.com/nexus/repository/maven-public/org/jetbrains/kotlin/multiplatform/org.jetbrains.kotlin.multiplatform.gradle.plugin/2.2.21-1.0.0/org.jetbrains.kotlin.multiplatform.gradle.plugin-2.2.21-1.0.0.pom
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin

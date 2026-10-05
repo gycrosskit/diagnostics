@@ -31,7 +31,7 @@ class DiagnosticsKtorConfig {
 /**
  * 每次真实发送独立关联，复用 [NetworkCapture] 的准入、脱敏与有界日志环。
  * 请求只观察 Ktor 自带的 TextContent/ByteArrayContent，不调用自定义或流式 content。
- * 响应只观察 Ktor 已保存、长度明确的 UTF-8 文本；streaming execute { } 仅记录响应头。
+ * 响应只观察 Ktor 已保存的 UTF-8 文本，按实际字节数限额；streaming execute { } 仅记录响应头。
  * 本插件不 save、替换或消费网络流，不额外等待响应完成；耗时截至响应头。
  * 网络异常与 Coroutine 取消原样传播；日志回调失败由 [NetworkCapture] 隔离。
  */
@@ -65,8 +65,8 @@ val DiagnosticsKtor = createClientPlugin("DiagnosticsKtor", ::DiagnosticsKtorCon
 
     onResponse { response ->
         val call = response.call.attributes.getOrNull(callKey) ?: return@onResponse
-        val length = response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: return@onResponse
-        if (!capture.captureBody || !response.isSaved || length !in 0..capture.maxBodyBytes.toLong() ||
+        val length = response.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+        if (!capture.captureBody || !response.isSaved || (length != null && length !in 0..capture.maxBodyBytes.toLong()) ||
             response.headers[HttpHeaders.ContentEncoding] != null ||
             !isUtf8Text(response.headers[HttpHeaders.ContentType])) return@onResponse
         try {

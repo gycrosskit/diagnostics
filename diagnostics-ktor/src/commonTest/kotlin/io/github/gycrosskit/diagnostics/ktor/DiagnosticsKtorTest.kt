@@ -11,6 +11,7 @@ import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.isSaved
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
@@ -158,13 +159,13 @@ class DiagnosticsKtorTest {
         } finally { client.close() }
     }
 
-    @Test fun binaryUnknownLengthAndNonUtf8ResponsesSkipBody() = runTest {
+    @Test fun binaryEncodedAndNonUtf8ResponsesSkipBody() = runTest {
         val store = NetworkLogStore<Unit>()
         val engine = MockEngine { data ->
             val headers = when (data.url.encodedPath) {
                 "/binary" -> textHeaders("hidden", "application/octet-stream")
                 "/charset" -> textHeaders("hidden", "text/plain; charset=iso-8859-1")
-                else -> headersOf(HttpHeaders.ContentType, "text/plain")
+                else -> headersOf(HttpHeaders.ContentType to listOf("application/json"), HttpHeaders.ContentEncoding to listOf("gzip"))
             }
             respond("hidden", headers = headers)
         }
@@ -172,7 +173,7 @@ class DiagnosticsKtorTest {
             install(DiagnosticsKtor) { capture = NetworkCapture(store, { Unit }, captureBody = true, redactBody = { it }) }
         }
         try {
-            for (path in listOf("binary", "charset", "unknown")) {
+            for (path in listOf("binary", "charset", "encoded")) {
                 assertEquals("hidden", client.get("https://example.test/$path").bodyAsText())
             }
             client.post("https://example.test/binary") {
@@ -185,6 +186,34 @@ class DiagnosticsKtorTest {
         } finally { client.close() }
     }
 
+    @Test fun savedJsonWithoutContentLengthUsesActualBytesAndRemainsReplayable() = runTest {
+        val store = NetworkLogStore<Unit>()
+        val small = "{\"token\":\"small-secret\",\"ok\":true}"
+        val oversized = "{\"token\":\"oversize-secret\",\"text\":\"${"四".repeat(40)}\"}"
+        val client = HttpClient(MockEngine { data ->
+            respond(if (data.url.encodedPath == "/small") small else oversized,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }) {
+            install(DiagnosticsKtor) {
+                capture = NetworkCapture(store, { Unit }, maxBodyBytes = 64, captureBody = true, redactBody = { redactNetworkJson(it) })
+            }
+        }
+        try {
+            for ((path, body) in listOf("small" to small, "large" to oversized)) {
+                val response = client.get("https://example.test/$path")
+                assertTrue(response.isSaved)
+                assertEquals(null, response.headers[HttpHeaders.ContentLength])
+                assertEquals(body, response.bodyAsText())
+                assertEquals(body, response.bodyAsText())
+            }
+            val bodyRecords = store.records.value.filter { it.message.contains("BODY:") }
+            assertEquals(1, bodyRecords.size)
+            assertEquals("https://example.test/small", bodyRecords.single().url)
+            assertTrue(bodyRecords.single().message.contains("\"ok\":true"))
+            assertTrue(store.records.value.none { it.message.contains("small-secret") || it.message.contains("oversize-secret") })
+        } finally { client.close() }
+    }
+
     @OptIn(InternalAPI::class)
     @Test fun streamingResponseDoesNotWaitForEofOrReadBody() = runTest {
         for (enabled in listOf(false, true)) {
@@ -194,7 +223,7 @@ class DiagnosticsKtorTest {
             // MockEngine 默认使用真实 IO dispatcher；虚拟 timeout 必须与 engine 使用同一调度器。
             val engine = MockEngine(MockEngineConfig().apply {
                 dispatcher = StandardTestDispatcher(testScheduler)
-                addHandler { respond(channel, headers = textHeaders("pending")) }
+                addHandler { respond(channel, headers = headersOf(HttpHeaders.ContentType, "text/plain")) }
             })
             val client = HttpClient(engine) {
                 if (enabled) install(DiagnosticsKtor) {
@@ -206,6 +235,7 @@ class DiagnosticsKtorTest {
                     client.prepareGet("https://example.test/").execute { response ->
                         assertEquals(HttpStatusCode.OK, response.status)
                         assertEquals(if (enabled) 2 else 0, store.records.value.size)
+                        assertFalse(response.isSaved)
                         assertFalse(channel.isClosedForRead)
                         assertTrue(response.rawContent === channel)
                         // Ktor 的 DefaultTransformers 为 body<ByteReadChannel>() 创建复制 channel，裸客户端也如此。
