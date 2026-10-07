@@ -7,11 +7,14 @@ import kotlin.time.TimeSource
  * 可选网络采集接线，复用有界日志环，不创建队列或持有 HttpClient。
  * Body 默认关闭；开启后仍须提供 [redactBody]，返回 null 表示不记录。
  * URL 默认去掉 query、fragment 和 userinfo；路径可能含个人信息，由 [redactUrl] 继续处理。
- * Headers 只保留 [allowedHeaders] 中的值，凭据类 header 即使进入允许列表也会遮盖。
+ * Headers 默认按 [allowedHeaders] 放行并遮盖凭据；提供 [redactHeader] 时由宿主决定每个值。
  * [context] 应返回不可变环境值；[include] 用于排除上传日志等会递归采集的接口。
  * 回调异常只关闭相应采集，不改变网络执行。回调在网络调用线程执行，宿主不得阻塞。
  * @property maxBodyBytes 每段完整 UTF-8 文本上限（1..32 KiB）；超额整段丢弃，避免截断后无法脱敏。
  * @property captureBody 是否观察正文，适配器据此避免不必要的复制。
+ * @property redactHeader 可选的 header 策略，收到原始名称与前四个值的合并文本。
+ * 非 null 时替代默认放行/凭据遮盖，可返回原文；返回 null 或抛异常仅遮盖当前 header。
+ * 输出仍最多 20 个 header，名称 128 字符、值 512 字符并清除换行；不修改 HTTP 数据。
  */
 class NetworkCapture<C>(
     private val store: NetworkLogStore<C>,
@@ -22,8 +25,17 @@ class NetworkCapture<C>(
     private val redactUrl: (String) -> String = { it },
     private val allowedHeaders: Set<String> = setOf("content-type", "content-length", "accept"),
     private val include: (String) -> Boolean = { true },
+    private val redactHeader: ((name: String, value: String) -> String?)? = null,
     private val onLog: (String) -> Unit = {},
 ) {
+    /** 保留旧九参数位置调用；新增策略不改变已有 onLog 参数位置。 */
+    constructor(
+        store: NetworkLogStore<C>, context: () -> C, maxBodyBytes: Int, captureBody: Boolean,
+        redactBody: (String) -> String?, redactUrl: (String) -> String,
+        allowedHeaders: Set<String>, include: (String) -> Boolean, onLog: (String) -> Unit,
+    ) : this(store, context, maxBodyBytes, captureBody, redactBody, redactUrl, allowedHeaders,
+        include, redactHeader = null, onLog = onLog)
+
     private val allowed = allowedHeaders.map(String::lowercase).toSet()
     init { require(maxBodyBytes in 1..32 * 1024) }
 
@@ -47,9 +59,13 @@ class NetworkCapture<C>(
 
     internal fun headers(headers: Map<String, List<String>>): String = headers.entries.take(20).joinToString("\n") { (name, values) ->
         val key = name.lowercase()
-        val value = if (key in allowed && !isCredentialHeader(key))
-            values.take(4).joinToString(", ").take(512).singleLine() else "<redacted>"
-        "${name.take(128).singleLine()}: $value"
+        val policy = redactHeader
+        val value = if (policy != null) {
+            try { policy(name, values.take(4).joinToString(", ")) } catch (_: Exception) { null }
+        } else if (key in allowed && !isCredentialHeader(key)) {
+            values.take(4).joinToString(", ")
+        } else null
+        "${name.take(128).singleLine()}: ${(value ?: "<redacted>").take(512).singleLine()}"
     }
 
     internal fun body(body: String?): String {

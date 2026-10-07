@@ -53,6 +53,66 @@ class NetworkCaptureTest {
         assertNull(NetworkCapture(store, { error("secret") }).begin("GET", "https://example.test", emptyMap()))
     }
 
+    @Test fun originalPositionalNamedAndTrailingLogCallbacksStillCompile() {
+        val store = NetworkLogStore<Unit>()
+        val output = mutableListOf<String>()
+        val positional = NetworkCapture(store, { Unit }, 4096, false, { null }, { it },
+            setOf("content-type"), { true }, output::add)
+        val named = NetworkCapture(store = store, context = { Unit }, maxBodyBytes = 4096,
+            captureBody = false, redactBody = { null }, redactUrl = { it },
+            allowedHeaders = setOf("content-type"), include = { true }, onLog = output::add)
+        val trailing = NetworkCapture(store, { Unit }) { output += it }
+        val custom = NetworkCapture(store, { Unit }, redactHeader = { _, value -> value }) { output += it }
+        listOf(positional, named, trailing, custom).forEach {
+            assertNotNull(it.begin("GET", "https://example.test", emptyMap()))
+        }
+        assertEquals(4, output.size)
+    }
+
+    @Test fun headerPolicyOverridesDefaultsAndFailsClosedPerHeader() {
+        val store = NetworkLogStore<Unit>()
+        val observed = mutableListOf<Pair<String, String>>()
+        val headers = linkedMapOf("Authorization" to listOf("Bearer private-token"),
+            "UserSig" to listOf("private-signature"), "Content-Type" to listOf("application/json"),
+            "X-Custom" to listOf("one", "two"))
+        val defaults = NetworkCapture(store, { Unit }, allowedHeaders = headers.keys)
+        assertEquals("Authorization: <redacted>\nUserSig: private-signature\nContent-Type: application/json\nX-Custom: one, two", defaults.headers(headers))
+        val custom = NetworkCapture(store, { Unit }, redactHeader = { name, value ->
+            observed += name to value
+            when (name) {
+                "Authorization" -> value
+                "UserSig" -> "masked"
+                "Content-Type" -> null
+                else -> error("private-error")
+            }
+        })
+        val call = assertNotNull(custom.begin("POST", "https://example.test", headers))
+        assertEquals("Authorization: Bearer private-token\nUserSig: masked\nContent-Type: <redacted>\nX-Custom: <redacted>", custom.headers(headers))
+        assertEquals(headers.entries.map { it.key to it.value.joinToString(", ") }, observed.take(4))
+        call.response(200, headers)
+        assertEquals(2, store.records.value.size)
+        assertTrue(store.records.value.all { it.message.contains("Bearer private-token") })
+        assertFalse(store.records.value.any { it.message.contains("private-error") })
+        assertEquals("Bearer private-token", headers.getValue("Authorization").single())
+    }
+
+    @Test fun customHeaderOutputKeepsCountValueAndSingleLineBounds() {
+        val store = NetworkLogStore<Unit>()
+        val seen = mutableListOf<String>()
+        val capture = NetworkCapture(store, { Unit }, redactHeader = { _, value ->
+            seen += value
+            "line\r\n" + "x".repeat(600)
+        })
+        val headers = (0..20).associate { "N\r\n$it" + "y".repeat(150) to listOf("a", "b", "c", "d", "ignored") }
+        val lines = capture.headers(headers).lines()
+        assertEquals(20, lines.size)
+        assertEquals(List(20) { "a, b, c, d" }, seen)
+        assertTrue(lines.all { it.substringBefore(": ").length == 128 })
+        assertTrue(lines.all { it.substringAfter(": ").length == 512 })
+        assertTrue(lines.all { it.substringAfter(": ").startsWith("line  ") })
+        assertFalse(lines.any { it.contains('\r') })
+    }
+
     @Test fun clearDoesNotReuseIdsAndOldTextInputRemainsUncorrelated() {
         val store = NetworkLogStore<String>(maxRecords = 2)
         val capture = NetworkCapture(store, { "qa" })
