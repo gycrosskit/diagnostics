@@ -155,36 +155,15 @@ if (batch.files.isNotEmpty()) {
 
 ## 0.2.0-rc.3 发布候选
 
-`DiagnosticWriter` 的写入失败保留到 `flush` 完成 barrier 等待并向调用方报告；此前的后续成功写入不能清除失败。
-超时或中断的迟到 barrier 不算已报告；失败报告后，后续成功写入可恢复，不永久锁定失败状态。
-
-本轮 JVM 23 项、Android 18 项测试及 Android 编译通过，含真实文件失败、恢复与超时迟到 barrier；未触发真实通知或设备崩溃。
-
-| 该版本配套渠道 | 配套版本 |
-| --- | --- |
-| Maven / Swift Package / Git Pod | `0.2.0-rc.3` / `0.2.0-rc.1` / `0.2.0-rc.1` |
-
-可选 diagnostics-dingtalk 与 core Maven 同版本；没有 HAR。候选已完成发布与新版本远程消费；设备行为不由编译/链接推断。
+历史候选及回归范围见[验证记录](VALIDATION.md#020-rc3-发布候选)。
 
 ## 0.2.0-rc.3 发布与远程验收
 
-Fresh macOS staging 与归档解包复验均通过，全部 13 个 publication 的声明文件四类哈希、四类 sidecar、Apache-2.0 POM 及同名 available-at 目标身份均已校验。Maven 归档 SHA-256：`9562ab51b35d2d66f3edbf557caa7fa77f7d3f574d98a0b760bddee948928bba`。
-
-Maven `0.2.0-rc.3`；未变 Native Swift Package / Git Pod 保留 `0.2.0-rc.1`。
-
-不可变标签与 prerelease 已发布，所有 Release 附件重下载 SHA 与清单匹配。JitPack 新版本最终 ok/isTag/public 且 commit 匹配 tag，全部 13 module、17 个文件引用、15 个 available-at 的 HTTP/四类声明 hash/身份验证通过。新版真实远程 consumer 已通过；设备与业务 SDK 动作未验。
-
-精确 JitPack rc.3 新目录消费者包含 core 与可选 dingtalk：42 tasks / 51s，Android AAR、JVM 1 项及 Android 2 项消费测试、iOS 三架构编译和 simulator Framework、OHOS core aarch64 .so；全部消费测试通过。未变 Swift Package/Git Pod rc.1 沿用已验渠道。本轮不发送真实通知。
-
-实际日志与 JSON 账单位于 `build/remote-library-review/`。真实设备、业务账号登录/聊天/直播/PiP、权限 UI、真实 Bug/通知发送未执行。
+历史渠道与消费结果见[验证记录](VALIDATION.md#020-rc3-新版本真实远程验收)。
 
 ## 0.2.0-rc.4 本轮测试与远程验收
 
-2026-10-05：本轮自有源码和公开 API 审查、关键回归与受影响平台编译通过；真实 JitPack `0.2.0-rc.4` 的最终标签提交、13 个 publications 的 POM/Module、所有变体文件大小与四种声明哈希、内部精确版本及 available-at 均通过。Release Maven 归档重新下载 SHA-256 为 `d9142b53d885caad03220e216ac3d044523c14e2a761cc951d5615d2e5487ed5`。公开 MD5/SHA-1 sidecar 通过；SHA-256/SHA-512 sidecar 的 HTTP 404 记录为渠道缺失。
-
-干净消费工程使用固定远程版本，没有本地 Maven、includeBuild 或其他组件源码替代；通过现有入口的 Android/iOS / OHOS / JVM 编译和相应最终链接。 JitPack 顶层 component.url 改写地址返回404，实际变体/available-at与真实消费者正常；未创建伪坐标掩盖此字段。
-
-完整回归范围、精简原则、注释契约与仍需设备/业务验收的边界见 [14 个功能组件测试与 API 审查](https://github.com/gycrosskit/.github/blob/main/docs/组件测试与API审查.md)。源码测试与远程消费不代替真机和厂商业务验收。
+历史日期、校验值与渠道边界见[验证记录](VALIDATION.md#020-rc4-本轮测试与远程验收)。
 
 ### Android native crash 历史（0.2.0-rc.9）
 

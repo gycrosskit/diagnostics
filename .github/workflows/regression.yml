@@ -7,6 +7,10 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
+      warm_native_cache:
+        description: Warm Native toolchains on main only (leave version empty)
+        type: boolean
+        default: false
       version:
         description: Immutable release tag to verify (empty runs source regression)
         type: string
@@ -181,14 +185,18 @@ jobs:
           retention-days: 7
   native:
     needs: changes
-    runs-on: ${{ (needs.changes.outputs.source == 'true') && 'macos-15' || 'ubuntu-24.04' }}
+    runs-on: ${{ ((needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')) && 'macos-15' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Identify Native toolchain and Xcode
+        if: (needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')
+        id: native-key
+        run: python3 scripts/ci-native-cache.py --key >> "$GITHUB_OUTPUT"
       - name: Restore completed Kotlin Native toolchain
-        if: needs.changes.outputs.source == 'true'
+        if: (needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')
         id: konan
         uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
@@ -198,9 +206,9 @@ jobs:
             !~/.konan/**/*.part
             !~/.konan/**/*.tmp
             !~/.konan/**/*.lock
-          key: konan-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle.properties', '**/gradle-wrapper.properties', '**/build.gradle.kts', '**/settings.gradle.kts') }}
+          key: ${{ steps.native-key.outputs.key }}
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-        if: needs.changes.outputs.source == 'true'
+        if: (needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')
         with:
           distribution: temurin
           java-version: '17'
@@ -218,8 +226,12 @@ jobs:
       - name: Explain lightweight completion
         if: ${{ !(needs.changes.outputs.source == 'true') }}
         run: echo 'No build is required for this event and scope.'
+      - name: Warm trusted main Native cache
+        if: (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main') && steps.konan.outputs.cache-hit != 'true'
+        timeout-minutes: 40
+        run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/native-warmup.log -- python3 scripts/ci-native-cache.py
       - name: Cache only successful Native downloads
-        if: success() && (needs.changes.outputs.source == 'true') && steps.konan.outputs.cache-hit != 'true'
+        if: success() && ((needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')) && steps.konan.outputs.cache-hit != 'true'
         uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: |
@@ -313,6 +325,10 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Identify Native toolchain and Xcode
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        id: native-key
+        run: python3 scripts/ci-native-cache.py --key >> "$GITHUB_OUTPUT"
       - name: Restore completed Kotlin Native toolchain
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         id: konan
@@ -324,7 +340,7 @@ jobs:
             !~/.konan/**/*.part
             !~/.konan/**/*.tmp
             !~/.konan/**/*.lock
-          key: konan-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle.properties', '**/gradle-wrapper.properties', '**/build.gradle.kts', '**/settings.gradle.kts') }}
+          key: ${{ steps.native-key.outputs.key }}
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         with:

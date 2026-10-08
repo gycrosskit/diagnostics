@@ -111,7 +111,18 @@ PR #5合并/tag指向cd7d0d96569fca4622d0b6539c9f16a132092e94，JitPack最终ok/
 
 独立verification-consumer使用默认JitPack独占group，开启diagnosticsClosure/候选0.2.0-rc.2：JVM/Android共3项消费者测试、Android公共API、iOS arm64/x64编译、Simulator Framework和OHOS shared.so最终链接全部通过（BUILD SUCCESSFUL 1m3s）。core与可选DingTalk真实远程变体消费，不使用includeBuild/project/mavenLocal/临时Maven替换。日志位于忽略build/closure/remote-consumer.log。没有真实通知发送/上传或设备系统采集验收。
 
+## 0.2.0-rc.3 发布候选
+
+`DiagnosticWriter` 的写入失败保留到 `flush` 完成 barrier 等待并向调用方报告；此前的后续成功写入不能清除失败。
+超时或中断的迟到 barrier 不算已报告；失败报告后，后续成功写入可恢复，不永久锁定失败状态。
+
+本轮 JVM 23 项、Android 18 项测试及 Android 编译通过，含真实文件失败、恢复与超时迟到 barrier；未触发真实通知或设备崩溃。
+
+可选 diagnostics-dingtalk 与 core Maven 同版本；没有 HAR。候选已完成发布与新版本远程消费；设备行为不由编译/链接推断。
+
 ## 0.2.0-rc.3 新版本真实远程验收
+
+Fresh macOS staging 与归档解包复验均通过，全部 13 个 publication 的声明文件四类哈希、四类 sidecar、Apache-2.0 POM 及同名 available-at 目标身份均已校验。Maven 归档 SHA-256：`9562ab51b35d2d66f3edbf557caa7fa77f7d3f574d98a0b760bddee948928bba`。
 
 精确 JitPack rc.3 新目录消费者包含 core 与可选 dingtalk：42 tasks / 51s，Android AAR、JVM 1 项及 Android 2 项消费测试、iOS 三架构编译和 simulator Framework、OHOS core aarch64 .so；全部消费测试通过。未变 Swift Package/Git Pod rc.1 沿用已验渠道。本轮不发送真实通知。
 
@@ -119,6 +130,14 @@ Release 所有资产重新下载，SHA/大小/清单与候选匹配；JitPack �
 
 兼容矩阵：Maven `0.2.0-rc.3`；未变 Native Swift Package / Git Pod 保留 `0.2.0-rc.1`。
 
-日志及 JSON 位于 `build/remote-library-review/`，不使用旧候选结果代替新版本消费。设备与业务 SDK 操作未执行；main 没有配置 required CI checks，不声称 GitHub CI 通过。
+日志及 JSON 位于 `build/remote-library-review/`，不使用旧候选结果代替新版本消费。真实设备、业务账号登录/聊天/直播/PiP、权限 UI、真实 Bug/通知发送未执行；main 没有配置 required CI checks，不声称 GitHub CI 通过。
 
 本轮 OHOS generated api.cpp 的 6 条 return-type 警告保留于 remote log。旧候选历史检查未包含本轮完整 strict POM/sidecar 规则；新 rc.3 13 publication 已全部补标准 Apache POM 许可证并通过最新权威 checker，旧 tag/资产不覆盖。
+
+## 0.2.0-rc.4 本轮测试与远程验收
+
+2026-10-05：本轮自有源码和公开 API 审查、关键回归与受影响平台编译通过；真实 JitPack `0.2.0-rc.4` 的最终标签提交、13 个 publications 的 POM/Module、所有变体文件大小与四种声明哈希、内部精确版本及 available-at 均通过。Release Maven 归档重新下载 SHA-256 为 `d9142b53d885caad03220e216ac3d044523c14e2a761cc951d5615d2e5487ed5`。公开 MD5/SHA-1 sidecar 通过；SHA-256/SHA-512 sidecar 的 HTTP 404 记录为渠道缺失。
+
+干净消费工程使用固定远程版本，没有本地 Maven、includeBuild 或其他组件源码替代；通过现有入口的 Android/iOS / OHOS / JVM 编译和相应最终链接。 JitPack 顶层 component.url 改写地址返回404，实际变体/available-at与真实消费者正常；未创建伪坐标掩盖此字段。
+
+完整回归范围、精简原则、注释契约与仍需设备/业务验收的边界见 [14 个功能组件测试与 API 审查](https://github.com/gycrosskit/.github/blob/main/docs/组件测试与API审查.md)。源码测试与远程消费不代替真机和厂商业务验收。
