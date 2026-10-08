@@ -8,6 +8,11 @@ kotlin {
     ohosArm64 { binaries.sharedLib { baseName = "DiagnosticsConsumer" } }
     applyDefaultHierarchyTemplate()
     sourceSets {
+        val consumerVersion = providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.9").get()
+        // CI 同时回归旧公开坐标；native history 入口从 rc.9 起提供。
+        if (consumerVersion !in (1..8).map { "0.2.0-rc.$it" } && consumerVersion != "0.1.0") {
+            androidMain.get().kotlin.srcDir("src/nativeHistoryAndroidMain/kotlin")
+        }
         if (providers.gradleProperty("diagnosticsClosure").orNull == "true") {
             commonMain.get().kotlin.srcDir("src/closureCommonMain/kotlin")
             val notificationMain by creating {
