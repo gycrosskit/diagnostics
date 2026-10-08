@@ -90,7 +90,7 @@ data class StoredAnrReport(
  * ANR 报告文件仓库。
  *
  * 与崩溃文件相同，写入过程使用临时文件加原子重命名；系统 ANR 使用稳定文件名，因此同一条
- * ApplicationExitInfo 在多次启动时不会重复保存；最多保留 10 份，每份 256 KiB。
+ * ApplicationExitInfo 在保留窗口内不会重复保存，窗口外的旧历史不重写；按事件时间保留最新 10 份，每份 256 KiB。
  * 所有方法同步 I/O 且实例锁串行，宿主后台调用；不持有后台线程或长期文件句柄。
  * reportDirectory 必须是宿主专属私有目录，实例不提供跨进程/跨实例锁。
  */
@@ -102,7 +102,7 @@ class AnrReportStore(
         reportDirectory = File(context.noBackupFilesDir, ANR_DIRECTORY_NAME),
     )
 
-    /** 保存报告；按固定额度流式写盘，诊断数据异常时返回 null，不影响业务进程。 */
+    /** 保存报告；按事件时间保留最新窗口，窗口外旧项或诊断数据异常返回 null，不影响业务进程。 */
     @Synchronized
     fun record(report: AnrReport): File? {
         var temporary: File? = null
@@ -110,12 +110,19 @@ class AnrReportStore(
             check(reportDirectory.exists() || reportDirectory.mkdirs()) { "无法创建 ANR 目录" }
             val target = File(reportDirectory, report.fileName())
             if (target.isFile) return target
+            val reports = reportFiles()
+                .map { it to (readSummary(it)?.timestampMillis ?: Long.MIN_VALUE) }
+                .sortedByDescending { it.second }
+            // 系统历史从新到旧返回；不能让较晚写盘的旧事件挤掉最新报告。
+            if (reports.size >= MAX_ANR_FILES &&
+                report.timestampMillis <= reports[MAX_ANR_FILES - 1].second
+            ) return null
             temporary = File(reportDirectory, "${target.name}.tmp")
             temporary.bufferedWriter(Charsets.UTF_8).use { writer ->
                 report.writeTo(writer)
             }
             check(temporary.renameTo(target)) { "无法完成 ANR 文件写入" }
-            trimOldReports()
+            reports.drop(MAX_ANR_FILES - 1).forEach { it.first.delete() }
             target
         } catch (_: Throwable) {
             // ANR 诊断不能成为二次崩溃源；临时文件可安全删除，调用方只记录轻量失败日志。
@@ -178,13 +185,6 @@ class AnrReportStore(
             suspectedReason = headers[HEADER_SUSPECTED_REASON].orEmpty(),
         )
     }.getOrNull()
-
-    private fun trimOldReports() {
-        reportFiles()
-            .sortedByDescending(File::lastModified)
-            .drop(MAX_ANR_FILES)
-            .forEach(File::delete)
-    }
 
     internal companion object {
         const val ANR_DIRECTORY_NAME = "anrs"

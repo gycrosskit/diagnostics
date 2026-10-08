@@ -62,6 +62,23 @@ class AnrReportStoreTest {
     }
 
     @Test
+    fun `descending system history retains latest events and skips old imports after recreation`() {
+        val directory = temporaryFolder.newFolder()
+        var store = AnrReportStore(directory)
+        store.record(AnrReport(AnrReportSource.WATCHDOG, 20L))
+        for (time in 16L downTo 1L) store.record(AnrReport(AnrReportSource.SYSTEM, time, pid = 1))
+        assertEquals(listOf(20L) + (16L downTo 8L).toList(), store.summaries().map { it.timestampMillis })
+        val original = store.pendingReportFiles().associate { it.name to (it.lastModified() to it.readText()) }
+        store = AnrReportStore(directory)
+        for (time in 16L downTo 1L) {
+            val result = store.record(AnrReport(AnrReportSource.SYSTEM, time, pid = 1, description = "must not rewrite"))
+            if (time < 8L) assertNull(result) else assertNotNull(result)
+        }
+        assertEquals(original, store.pendingReportFiles().associate { it.name to (it.lastModified() to it.readText()) })
+        assertFalse(directory.walk().any { it.name.endsWith(".tmp") })
+    }
+
+    @Test
     fun `oversized report is streamed within the file limit`() {
         val directory = temporaryFolder.newFolder()
         val store = AnrReportStore(directory)
