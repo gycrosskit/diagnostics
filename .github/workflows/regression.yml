@@ -18,6 +18,7 @@ on:
 permissions:
   contents: read
 env:
+  CI_FORK_HOST_FALLBACK_IP: ${{ vars.CI_FORK_HOST_FALLBACK_IP }}
   # 此版 Native 下载器使用 URLConnection 默认超时；阻塞读取必须退出，才能进入其已有续传重试。
   JAVA_TOOL_OPTIONS: -Djava.security.properties=${{ github.workspace }}/scripts/ci-java.security -Dsun.net.client.defaultConnectTimeout=30000 -Dsun.net.client.defaultReadTimeout=60000
 concurrency:
@@ -117,6 +118,8 @@ jobs:
       - name: Explain lightweight completion
         if: ${{ !(needs.changes.outputs.source == 'true') }}
         run: echo 'No build is required for this event and scope.'
+      - name: Check fork host trust boundaries
+        run: python3 verification/ci/test_fork_host.py
       - name: Check CI shell syntax
         run: |
           PYTHONPYCACHEPREFIX="$RUNNER_TEMP/ci-python-cache" python3 -m py_compile scripts/ci-changes.py scripts/ci-run.py
@@ -155,6 +158,9 @@ jobs:
           cache: gradle
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
         timeout-minutes: 35
+        if: needs.changes.outputs.source == 'true'
+      - run: bash scripts/ci-pin-fork-host.sh
+        timeout-minutes: 3
         if: needs.changes.outputs.source == 'true'
       - run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/android.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:jvmTest :diagnostics-core:testDebugUnitTest :diagnostics-dingtalk:jvmTest :diagnostics-dingtalk:testDebugUnitTest :diagnostics-ktor:jvmTest :diagnostics-ktor:testDebugUnitTest :diagnostics-okhttp:jvmTest :diagnostics-okhttp:compileDebugKotlinAndroid --no-daemon --max-workers=1
         timeout-minutes: 35
@@ -213,6 +219,9 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - run: bash scripts/ci-pin-fork-host.sh
+        timeout-minutes: 3
+        if: (needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')
       - timeout-minutes: 45
         if: needs.changes.outputs.source == 'true'
         run: |
@@ -283,6 +292,9 @@ jobs:
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
         timeout-minutes: 35
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+      - run: bash scripts/ci-pin-fork-host.sh
+        timeout-minutes: 3
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
       - timeout-minutes: 35
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         run: |
@@ -347,6 +359,9 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - run: bash scripts/ci-pin-fork-host.sh
+        timeout-minutes: 3
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
       - timeout-minutes: 45
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         run: |
