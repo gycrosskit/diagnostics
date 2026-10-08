@@ -8,13 +8,16 @@ internal class ReportRecorder(
     private val gate = StoreLock(recursive = true)
     private var closed = false
 
-    fun record(kind: ReportKind, text: String) = gate.locked {
-        if (closed) return@locked
+    fun record(kind: ReportKind, text: String): Boolean = gate.locked {
+        if (closed) return@locked false
         // 文件失败或用户通知异常均不得越过系统回调 ABI，也不影响后续事件。
         try {
-            if (store.recordReport(kind, text)) onReportStored?.invoke(kind)
+            if (!store.recordReport(kind, text)) return@locked false
         } catch (_: Throwable) {
+            return@locked false
         }
+        try { onReportStored?.invoke(kind) } catch (_: Throwable) { }
+        true
     }
 
     fun close() = gate.locked { closed = true }

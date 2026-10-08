@@ -5,7 +5,7 @@ import kotlinx.cinterop.*
 import platform.PerformanceAnalysisKit.HiAppEvent.*
 
 /**
- * API 12+ 系统延迟 APP_CRASH 原文，隐私准入后显式创建，不导入 external_log 附件。
+ * API 12+ 系统延迟 APP_CRASH / APP_FREEZE 原文，隐私准入后显式创建，不导入 external_log 附件。
  * 宿主串行创建/close，store 由宿主拥有；回调在线程不确定的系统入口同步落盘，成功后才通知。
  * 进程内只有一个 watcher，成功安装后 close 不允许重装，避免无身份的迟回调污染新实例。
  */
@@ -24,29 +24,28 @@ class OhosCrashRecorder(store: DiagnosticStore, onReportStored: ((ReportKind) ->
         try {
             checkNotNull(created) { "HiAppEvent 创建失败" }
             memScoped {
-                val names = allocArray<CPointerVar<ByteVar>>(1)
-                names[0] = "APP_CRASH".cstr.ptr
-                check(OH_HiAppEvent_SetAppEventFilter(created, "OS", 1u, names, 1) == 0)
+                val names = allocArray<CPointerVar<ByteVar>>(ohosSystemEvents.size)
+                ohosSystemEvents.forEachIndexed { index, name -> names[index] = name.cstr.ptr }
+                check(OH_HiAppEvent_SetAppEventFilter(created, "OS", 1u, names, ohosSystemEvents.size) == 0)
             }
             check(OH_HiAppEvent_SetWatcherOnReceive(created, staticCFunction { _, groups, count ->
                 try {
                     // 在 watcher 生命周期锁内复制 C 数据；通知在锁外执行，close 后已复制事件也不会复活。
                     val received = watcherGate.locked {
                         val receiver = activeRecorder ?: return@locked null
-                        val payloads = mutableListOf<String>()
+                        val payloads = mutableListOf<Pair<ReportKind, String>>()
                         for (groupIndex in 0 until count.toInt()) {
                             val group = groups?.get(groupIndex) ?: continue
                             for (eventIndex in 0 until group.infoLen.toInt()) {
                                 val event = group.appEventInfos?.get(eventIndex) ?: continue
-                                if (event.name?.toKString() == "APP_CRASH") {
-                                    event.params?.toKString()?.let { payloads += it }
-                                }
+                                val kind = ohosSystemReportKind(event.name?.toKString()) ?: continue
+                                event.params?.toKString()?.let { payloads += kind to it }
                             }
                         }
                         receiver to payloads
                     }
                     received?.let { (receiver, payloads) ->
-                        payloads.forEach { receiver.record(ReportKind.CRASH, it) }
+                        payloads.forEach { (kind, text) -> receiver.record(kind, text) }
                     }
                 } catch (_: Throwable) {
                     // 系统回调不能把文件 I/O 或宿主通知异常传播到 C ABI。
@@ -86,3 +85,11 @@ class OhosCrashRecorder(store: DiagnosticStore, onReportStored: ((ReportKind) ->
 private val watcherGate = StoreLock()
 private var activeRecorder: ReportRecorder? = null
 private var watcherReserved = false
+
+private val ohosSystemEvents = listOf("APP_CRASH", "APP_FREEZE")
+
+internal fun ohosSystemReportKind(name: String?): ReportKind? = when (name) {
+    "APP_CRASH" -> ReportKind.CRASH
+    "APP_FREEZE" -> ReportKind.HANG
+    else -> null
+}
