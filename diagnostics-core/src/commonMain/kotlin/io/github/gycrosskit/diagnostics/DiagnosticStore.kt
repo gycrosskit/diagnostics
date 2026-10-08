@@ -28,6 +28,7 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
         val path = DiagnosticFiles.checkedPath(source.directory)
         source.copy(directory = if (fs.exists(path)) fs.resolve(path).toString() else path.toString())
     }
+    internal val storageDirectory: String get() = root.toString()
     private val pending: Path
     private val owner = Any()
     private var closed = false
