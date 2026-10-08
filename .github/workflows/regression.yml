@@ -119,6 +119,7 @@ jobs:
         if: ${{ !(needs.changes.outputs.source == 'true') }}
         run: echo 'No build is required for this event and scope.'
       - name: Check fork host trust boundaries
+        if: needs.changes.outputs.source == 'true'
         run: python3 verification/ci/test_fork_host.py
       - name: Check CI shell syntax
         run: |
