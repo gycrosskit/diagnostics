@@ -6,3 +6,6 @@ local.properties
 .DS_Store
 .build/
 .swiftpm/
+/scripts/ci-changes.py
+/scripts/ci-run.py
+/scripts/ci-native-cache.py

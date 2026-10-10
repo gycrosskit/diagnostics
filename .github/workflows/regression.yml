@@ -38,29 +38,18 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - id: scope
         run: python3 scripts/ci-changes.py
       - run: |
           mkdir -p ci-diagnostics
           printf 'event=%s\nsource=%s\n' "$GITHUB_EVENT_NAME" "${{ steps.scope.outputs.source }}" > ci-diagnostics/scope.txt
-      - name: Record job completion
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          printf 'job=%s\nstatus=%s\n' "$GITHUB_JOB" "${{ job.status }}" > "ci-diagnostics/$GITHUB_JOB.txt"
       - name: Save public CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
-          name: changes-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ci-diagnostics/**/*.log
-            ci-diagnostics/**/*.json
-            ci-diagnostics/**/*.jsonl
-            ci-diagnostics/**/*.txt
-            **/build/test-results/**/*.xml
-          if-no-files-found: ignore
-          retention-days: 7
+          status: ${{ job.status }}
   verify-public:
     needs: changes
     runs-on: ubuntu-24.04
@@ -73,30 +62,19 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - name: Check exact frozen archive and public publications once
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         timeout-minutes: 30
         run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/verify-public.log -- bash scripts/ci-release.sh
       - if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')) }}
         run: echo 'Public artifact validation runs for Release or an explicit version dispatch.'
-      - name: Record job completion
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          printf 'job=%s\nstatus=%s\n' "$GITHUB_JOB" "${{ job.status }}" > "ci-diagnostics/$GITHUB_JOB.txt"
       - name: Save public CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
-          name: verify-public-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ci-diagnostics/**/*.log
-            ci-diagnostics/**/*.json
-            ci-diagnostics/**/*.jsonl
-            ci-diagnostics/**/*.txt
-            **/build/test-results/**/*.xml
-          if-no-files-found: ignore
-          retention-days: 7
+          status: ${{ job.status }}
   contracts:
     if: always()
     needs: changes
@@ -108,6 +86,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - timeout-minutes: 8
         if: needs.changes.outputs.source == 'true'
         run: |
@@ -125,24 +105,11 @@ jobs:
         run: |
           PYTHONPYCACHEPREFIX="$RUNNER_TEMP/ci-python-cache" python3 -m py_compile scripts/ci-changes.py scripts/ci-run.py
           for script in scripts/*.sh; do bash -n "$script"; done
-      - name: Record job completion
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          printf 'job=%s\nstatus=%s\n' "$GITHUB_JOB" "${{ job.status }}" > "ci-diagnostics/$GITHUB_JOB.txt"
       - name: Save public CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
-          name: contracts-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ci-diagnostics/**/*.log
-            ci-diagnostics/**/*.json
-            ci-diagnostics/**/*.jsonl
-            ci-diagnostics/**/*.txt
-            **/build/test-results/**/*.xml
-          if-no-files-found: ignore
-          retention-days: 7
+          status: ${{ job.status }}
   android:
     needs: changes
     runs-on: ubuntu-24.04
@@ -151,6 +118,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         if: needs.changes.outputs.source == 'true'
         with:
@@ -172,24 +141,11 @@ jobs:
       - name: Explain lightweight completion
         if: ${{ !(needs.changes.outputs.source == 'true') }}
         run: echo 'No build is required for this event and scope.'
-      - name: Record job completion
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          printf 'job=%s\nstatus=%s\n' "$GITHUB_JOB" "${{ job.status }}" > "ci-diagnostics/$GITHUB_JOB.txt"
       - name: Save public CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
-          name: android-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ci-diagnostics/**/*.log
-            ci-diagnostics/**/*.json
-            ci-diagnostics/**/*.jsonl
-            ci-diagnostics/**/*.txt
-            **/build/test-results/**/*.xml
-          if-no-files-found: ignore
-          retention-days: 7
+          status: ${{ job.status }}
   native:
     needs: changes
     runs-on: ${{ ((needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')) && 'macos-15' || 'ubuntu-24.04' }}
@@ -198,6 +154,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - name: Identify Native toolchain and Xcode
         if: (needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')
         id: native-key
@@ -251,24 +209,11 @@ jobs:
             !~/.konan/**/*.tmp
             !~/.konan/**/*.lock
           key: ${{ steps.konan.outputs.cache-primary-key }}
-      - name: Record job completion
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          printf 'job=%s\nstatus=%s\n' "$GITHUB_JOB" "${{ job.status }}" > "ci-diagnostics/$GITHUB_JOB.txt"
       - name: Save public CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
-          name: native-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ci-diagnostics/**/*.log
-            ci-diagnostics/**/*.json
-            ci-diagnostics/**/*.jsonl
-            ci-diagnostics/**/*.txt
-            **/build/test-results/**/*.xml
-          if-no-files-found: ignore
-          retention-days: 7
+          status: ${{ job.status }}
   release-android:
     if: always()
     needs: [changes, verify-public]
@@ -284,6 +229,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         with:
@@ -305,24 +252,11 @@ jobs:
       - name: Explain lightweight completion
         if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')) }}
         run: echo 'No build is required for this event and scope.'
-      - name: Record job completion
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          printf 'job=%s\nstatus=%s\n' "$GITHUB_JOB" "${{ job.status }}" > "ci-diagnostics/$GITHUB_JOB.txt"
       - name: Save public CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
-          name: release-android-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ci-diagnostics/**/*.log
-            ci-diagnostics/**/*.json
-            ci-diagnostics/**/*.jsonl
-            ci-diagnostics/**/*.txt
-            **/build/test-results/**/*.xml
-          if-no-files-found: ignore
-          retention-days: 7
+          status: ${{ job.status }}
   release-native:
     if: always()
     needs: [changes, verify-public]
@@ -338,6 +272,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - name: Identify Native toolchain and Xcode
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         id: native-key
@@ -384,21 +320,8 @@ jobs:
             !~/.konan/**/*.tmp
             !~/.konan/**/*.lock
           key: ${{ steps.konan.outputs.cache-primary-key }}
-      - name: Record job completion
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          printf 'job=%s\nstatus=%s\n' "$GITHUB_JOB" "${{ job.status }}" > "ci-diagnostics/$GITHUB_JOB.txt"
       - name: Save public CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
-          name: release-native-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ci-diagnostics/**/*.log
-            ci-diagnostics/**/*.json
-            ci-diagnostics/**/*.jsonl
-            ci-diagnostics/**/*.txt
-            **/build/test-results/**/*.xml
-          if-no-files-found: ignore
-          retention-days: 7
+          status: ${{ job.status }}
