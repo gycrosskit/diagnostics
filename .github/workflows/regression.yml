@@ -11,6 +11,10 @@ on:
         description: Warm Native toolchains on main only (leave version empty)
         type: boolean
         default: false
+      archive_prebuilt:
+        description: Build a frozen candidate Maven archive on macOS (requires version)
+        type: boolean
+        default: false
       version:
         description: Immutable release tag to verify (empty runs source regression)
         type: string
@@ -50,6 +54,53 @@ jobs:
         uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
         with:
           status: ${{ job.status }}
+  archive-prebuilt:
+    if: github.event_name == 'workflow_dispatch' && inputs.archive_prebuilt && inputs.version != ''
+    needs: changes
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install shared CI tools
+        uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
+      - id: native-key
+        run: python3 scripts/ci-native-cache.py --key >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ~/.konan
+          key: ${{ steps.native-key.outputs.key }}
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - run: bash scripts/ci-pin-fork-host.sh
+        timeout-minutes: 3
+      - name: Build and check complete Maven archive
+        timeout-minutes: 50
+        run: |
+          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/archive.log -- bash scripts/archive-prebuilt.sh
+          python3 - <<'PROVENANCE'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          files = subprocess.check_output(['git', 'ls-files', 'diagnostics-core', 'diagnostics-dingtalk', 'diagnostics-ktor', 'diagnostics-okhttp', 'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle', 'scripts/archive-prebuilt.sh', 'jitpack-metadata.py', 'verification/check-maven.py']).decode().splitlines()
+          hashes = {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(files)}
+          Path('build/prebuilt/provenance.json').write_text(json.dumps({'version': os.environ['VERSION'], 'sourceCommit': os.environ['GITHUB_SHA'], 'runId': os.environ['GITHUB_RUN_ID'], 'sourceFiles': hashes, 'archiveSha256': hashlib.sha256(Path('build/prebuilt/diagnostics-maven.tar.gz').read_bytes()).hexdigest()}, indent=2) + '\n')
+          PROVENANCE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: diagnostics-prebuilt-${{ inputs.version }}
+          path: build/prebuilt/
+          if-no-files-found: error
+      - name: Save public CI diagnostics
+        if: always()
+        uses: gycrosskit/.github/actions/ci-diagnostics@607ff44db144c68fc6523de38c04aac29e427b68
+        with:
+          status: ${{ job.status }}
   verify-public:
     needs: changes
     runs-on: ubuntu-24.04
@@ -65,10 +116,10 @@ jobs:
       - name: Install shared CI tools
         uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - name: Check exact frozen archive and public publications once
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         timeout-minutes: 30
         run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/verify-public.log -- bash scripts/ci-release.sh
-      - if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')) }}
+      - if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) }}
         run: echo 'Public artifact validation runs for Release or an explicit version dispatch.'
       - name: Save public CI diagnostics
         if: always()
@@ -232,25 +283,25 @@ jobs:
       - name: Install shared CI tools
         uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         with:
           distribution: temurin
           java-version: ${{ contains(fromJSON('["0.1.0","0.2.0-rc.1","0.2.0-rc.2","0.2.0-rc.3","0.2.0-rc.4","0.2.0-rc.5"]'), env.VERSION) && '21' || '17' }}
           cache: gradle
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
         timeout-minutes: 35
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
       - run: bash scripts/ci-pin-fork-host.sh
         timeout-minutes: 3
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
       - timeout-minutes: 35
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         run: |
           network=true
           case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
           python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-android.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer jvmTest testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
       - name: Explain lightweight completion
-        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')) }}
+        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) }}
         run: echo 'No build is required for this event and scope.'
       - name: Save public CI diagnostics
         if: always()
@@ -260,7 +311,7 @@ jobs:
   release-native:
     if: always()
     needs: [changes, verify-public]
-    runs-on: ${{ (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')) && 'macos-15' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) && 'macos-15' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     env:
       VERSION: ${{ github.event.release.tag_name || inputs.version }}
@@ -275,11 +326,11 @@ jobs:
       - name: Install shared CI tools
         uses: gycrosskit/.github/actions/ci-tools@607ff44db144c68fc6523de38c04aac29e427b68
       - name: Identify Native toolchain and Xcode
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         id: native-key
         run: python3 scripts/ci-native-cache.py --key >> "$GITHUB_OUTPUT"
       - name: Restore completed Kotlin Native toolchain
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         id: konan
         uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
@@ -291,26 +342,26 @@ jobs:
             !~/.konan/**/*.lock
           key: ${{ steps.native-key.outputs.key }}
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
       - run: bash scripts/ci-pin-fork-host.sh
         timeout-minutes: 3
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
       - timeout-minutes: 45
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         run: |
           network=true
           case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
-          if [[ "$(uname -m)" == arm64 ]]; then simulator=linkDebugFrameworkIosSimulatorArm64; else simulator=linkDebugFrameworkIosX64; fi
-          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-native.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
+          if [[ "$(uname -m)" == arm64 ]]; then simulator=linkDebugFrameworkIosSimulatorArm64; simulator_test=iosSimulatorArm64Test; else simulator=linkDebugFrameworkIosX64; simulator_test=iosX64Test; fi
+          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-native.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" "$simulator_test" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
       - name: Explain lightweight completion
-        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')) }}
+        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) }}
         run: echo 'No build is required for this event and scope.'
       - name: Cache only successful Native downloads
-        if: success() && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '')) && steps.konan.outputs.cache-hit != 'true'
+        if: success() && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) && steps.konan.outputs.cache-hit != 'true'
         uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: |
