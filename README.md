@@ -2,6 +2,8 @@
 
 本库提供 Core 与可选网络/通知基础设施，CMP/Kuikly 是消费方；没有独立 UI 模块。 五种消费入口、公开功能组、平台限制及 **0.2.0-rc.10**的验证范围见 [功能与平台差异](docs/功能与平台差异.md)。发布状态以对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.10) 为准；设备验收边界见功能页。
 
+源码候选（2026-10-10，从 `578661503873573588d5ff07be3496c19bc92034` 起）：`diagnostics-ktor` 增加 `DiagnosticStore.openFileChannel`，由宿主上传 scope 持有，有界读取并提供 EOF/close 屏障；**尚未发布，0.2.0-rc.10 不含此 API**。接线和验证范围见[逐文件上传](docs/接入指南.md#ktor-流式桥接源码候选)。
+
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
 Maven 版本 **0.2.0-rc.10**：在 `diagnostics-core` / `diagnostics-dingtalk` 之外增加可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md)，统一关联、耗时、有界正文与脱敏；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。
