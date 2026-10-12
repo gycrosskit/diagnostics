@@ -1,3 +1,14 @@
+// 源码 CI 复用编译结果，但行为测试必须重新执行，不能用缓存 XML 代替本轮验证。
+if (System.getenv('GYC_CI_BUILD_CACHE') == 'true') {
+    gradle.startParameter.buildCacheEnabled = true
+    gradle.beforeProject { project ->
+        project.tasks.withType(org.gradle.api.tasks.testing.AbstractTestTask).configureEach {
+            outputs.upToDateWhen { false }
+            outputs.doNotCacheIf('CI must execute behavior tests') { true }
+        }
+    }
+}
+
 // 依赖缓存可能让首次 DNS 推迟到测试阶段；只在下载前有限重试域名解析，不重跑测试。
 def ciDnsHost = 'maven.eazytec-cloud.com'
 println "CI DNS cache: positive=${java.security.Security.getProperty('networkaddress.cache.ttl')}, negative=${java.security.Security.getProperty('networkaddress.cache.negative.ttl')}"

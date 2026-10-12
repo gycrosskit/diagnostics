@@ -152,6 +152,9 @@ jobs:
       - name: Check fork host trust boundaries
         if: needs.changes.outputs.source == 'true'
         run: python3 verification/ci/test_fork_host.py
+      - name: Check source cache and test execution policy
+        if: needs.changes.outputs.source == 'true'
+        run: python3 verification/ci/test_cache_contract.py
       - name: Check CI shell syntax
         run: |
           PYTHONPYCACHEPREFIX="$RUNNER_TEMP/ci-python-cache" python3 -m py_compile scripts/ci-changes.py scripts/ci-run.py
@@ -165,6 +168,8 @@ jobs:
     needs: changes
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      GYC_CI_BUILD_CACHE: 'true'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -176,7 +181,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
+      - name: Restore source Gradle cache
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        if: needs.changes.outputs.source == 'true'
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
         timeout-minutes: 35
         if: needs.changes.outputs.source == 'true'
@@ -201,6 +210,8 @@ jobs:
     needs: changes
     runs-on: ${{ ((needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')) && 'macos-15' || 'ubuntu-24.04' }}
     timeout-minutes: 60
+    env:
+      GYC_CI_BUILD_CACHE: 'true'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -228,7 +239,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
+      - name: Restore source Gradle cache
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        if: needs.changes.outputs.source == 'true'
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
       - run: bash scripts/ci-pin-fork-host.sh
         timeout-minutes: 3
         if: (needs.changes.outputs.source == 'true') || (github.event_name == 'workflow_dispatch' && inputs.warm_native_cache && github.ref == 'refs/heads/main')
