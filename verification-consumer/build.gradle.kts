@@ -9,6 +9,10 @@ kotlin {
     applyDefaultHierarchyTemplate()
     sourceSets {
         val consumerVersion = providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.11").get()
+        if (consumerVersion != "0.1.0" && consumerVersion !in (1..11).map { "0.2.0-rc.$it" }) {
+            commonMain.get().kotlin.srcDir("src/snapshotCommonMain/kotlin")
+            commonTest.get().kotlin.srcDir("src/snapshotCommonTest/kotlin")
+        }
         // CI 同时回归旧公开坐标；native history 入口从 rc.9 起提供。
         if (consumerVersion !in (1..8).map { "0.2.0-rc.$it" } && consumerVersion != "0.1.0") {
             androidMain.get().kotlin.srcDir("src/nativeHistoryAndroidMain/kotlin")

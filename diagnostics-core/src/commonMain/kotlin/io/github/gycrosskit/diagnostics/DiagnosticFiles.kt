@@ -88,26 +88,43 @@ object DiagnosticFiles {
         digest.finish()
     }
 
-    /** 先打开所有源文件，按快照长度流式导出；active/frozen 同名各自保留，失败删除临时产物。 */
+    /** 兼容路径快照入口；活动 store 应改用 openCurrentSnapshot，避免列举后路径轮转。 */
     @Throws(Exception::class)
     fun exportTextSnapshot(files: List<DiagnosticSnapshotFile>, destination: String, header: String = ""): Long {
-        val target = checkedPath(destination)
-        require(files.none { it.path == target.toString() })
-        require(!fs.exists(target)) { "Destination already exists" }
-        val inputs = mutableListOf<Pair<DiagnosticSnapshotFile, Source>>()
+        val target = validateTextDestination(files, destination)
+        return DiagnosticReadSnapshot.open(files).use { snapshot ->
+            writeTextSnapshot(target, snapshot.entries, header) { it.name }
+        }
+    }
+
+    /** 借用已打开的 reader 流式导出，不重新打开路径；调用方在所有分支关闭 snapshot。 */
+    @Throws(Exception::class)
+    fun exportTextSnapshot(
+        snapshot: DiagnosticReadSnapshot,
+        destination: String,
+        header: String = "",
+        files: List<DiagnosticSnapshotFile> = snapshot.files,
+        fileName: (DiagnosticSnapshotFile) -> String = { it.name },
+    ): Long {
+        val target = validateTextDestination(snapshot.files, destination)
+        require(files.distinct().size == files.size) { "快照文件只能导出一次" }
+        val inputs = files.map { it to snapshot.reader(it) }
+        return writeTextSnapshot(target, inputs, header, fileName)
+    }
+
+    private fun writeTextSnapshot(
+        target: Path,
+        inputs: List<Pair<DiagnosticSnapshotFile, DiagnosticFileReader>>,
+        header: String,
+        fileName: (DiagnosticSnapshotFile) -> String,
+    ): Long {
         val temporary = Path("$target.tmp")
-        require(!fs.exists(temporary)) { "Temporary destination already exists" }
         try {
-            files.forEach { inputs += it to open(it) }
             fs.sink(temporary).buffered().use { output ->
                 output.writeString(header)
                 for ((file, input) in inputs) {
-                    output.writeString("\n===== ${file.name} (${file.size} bytes) =====\n")
-                    var remaining = file.size
-                    while (remaining > 0) {
-                        val count = minOf(remaining, 16 * 1024L).toInt()
-                        output.write(input.readByteArray(count)); remaining -= count
-                    }
+                    output.writeString("\n===== ${fileName(file)} (${file.size} bytes) =====\n")
+                    while (true) { val bytes = input.read(); if (bytes.isEmpty()) break; output.write(bytes) }
                     output.write(byteArrayOf(10))
                 }
             }
@@ -116,7 +133,29 @@ object DiagnosticFiles {
         } catch (failure: Throwable) {
             runCatching { fs.delete(temporary, mustExist = false) }
             throw failure
-        } finally { inputs.forEach { it.second.close() } }
+        }
+    }
+
+    private fun validateTextDestination(files: List<DiagnosticSnapshotFile>, destination: String): Path {
+        val target = checkedPath(destination)
+        val temporary = Path("$target.tmp")
+        // 源及父目录可能已删除；解析尚存祖先，不能让路径校验使已打开的 reader 失效。
+        fun resolvedFile(path: Path): Path {
+            var ancestor = path
+            val missing = mutableListOf<String>()
+            while (!fs.exists(ancestor)) {
+                missing += ancestor.name
+                ancestor = Path(ancestor.toString().substringBeforeLast('/').ifEmpty { "/" })
+            }
+            var resolved = fs.resolve(ancestor)
+            for (name in missing.asReversed()) resolved = Path(resolved, name)
+            return resolved
+        }
+        val outputs = setOf(resolvedFile(target), resolvedFile(temporary))
+        require(files.none { resolvedFile(checkedPath(it.path)) in outputs })
+        require(!fs.exists(target)) { "Destination already exists" }
+        require(!fs.exists(temporary)) { "Temporary destination already exists" }
+        return target
     }
 
     internal fun checkedPath(value: String): Path {
