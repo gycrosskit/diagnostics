@@ -8,7 +8,7 @@ rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-Maven 版本 **0.2.0-rc.12**：增加原子只读快照、轮转安全的 ZIP/文本导出，以及 iOS/OHOS 有界 Throwable 格式化；用法见 [机制接入](docs/机制接入.md)。可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和通知模块保持同版；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。
+Maven 版本 **0.2.0-rc.12**：增加原子只读快照、轮转安全的 ZIP/文本导出，以及 iOS/OHOS 有界 Throwable 格式化；用法见 [机制接入](docs/机制接入.md)。可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和通知模块保持同版；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。rc.12 原有 Swift Package / Git Pod 配套 **0.2.0-rc.1**。rc.13 候选新增同版原生适配 Pod 和纯 ArkTS HAR；详见[可选诊断 SDK](docs/可选诊断SDK.md)。
 
 正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.12) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
 
@@ -18,10 +18,10 @@ Maven 版本 **0.2.0-rc.12**：增加原子只读快照、轮转安全的 ZIP/�
 | --- | --- | --- |
 | Android API 24+ | `androidDiagnosticStore(Context)`，noBackupFilesDir | `AndroidCrashRecorder`：JVM 未捕获异常；`AndroidAnrMonitor`：系统 ANR 历史/主线程看门狗；`AndroidNativeCrashCollector`：API30+ native 退出历史，非 signal 捕获 |
 | iOS | `iosDiagnosticStore()`，Library 并排除备份 | `GYDiagnosticsNative` ：MetricKit metrics/diagnostics JSON 与 NSException；iOS 14+，系统延迟投递 |
-| OpenHarmony | `DiagnosticStore`，宿主传 filesDir 下专属目录 | `OhosCrashRecorder`：HiAppEvent API 12+，延迟 APP_CRASH / APP_FREEZE；分别分类 CRASH / HANG；无 ArkTS 桥 |
+| OpenHarmony | `DiagnosticStore`，宿主传 filesDir 下专属目录 | `OhosCrashRecorder`：HiAppEvent API 12+，延迟 APP_CRASH / APP_FREEZE；分别分类 CRASH / HANG；存储无 ArkTS 桥，可选 SDK 桥见上文 |
 | JVM | `DiagnosticStore` | 文件存储，无系统采集器 |
 
-Kotlin **2.2.21-1.0.0** OHOS 工具链；依赖包含 OHOS 变体的 `kotlinx-io-core:0.9.0-1.0.0`。不依赖 Compose、Kuikly 或业务模块。
+Kotlin **2.2.21-1.0.0** OHOS 工具链；依赖包含 OHOS 变体的 `kotlinx-io-core:0.9.0-1.0.0`。核心存储不依赖 Compose、Kuikly 或业务模块；可选 `diagnostics-kuikly` 单独依赖 Kuikly Renderer。
 
 ## 架构与调用流程
 

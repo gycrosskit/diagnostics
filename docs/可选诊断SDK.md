@@ -16,6 +16,22 @@ Android 宿主仅调用 core 的 `installedAndroidDiagnosticSdkBridge(context)`�
 
 KMP 公共契约位于 `io.github.gycrosskit.diagnostics.sdk`；Android 具体适配器由所选模块自动提供，宿主不 import 供应商类型。iOS 三个新 Pod 都只包含 Swift，不依赖宿主 `Shared` framework；宿主保留跨语言薄桥。OHOS 三个 HAR 只含 ArkTS，不打入另一份 Kotlin runtime；`diagnostics-kuikly` 持有 Renderer 线程调度、页面销毁/重建与同一进程初始化结果的衔接。
 
+## 通用配置
+
+`DiagnosticSdkConfiguration` 不区分供应商类型；`appId` / `appKey` / `channel`、崩溃/日志/性能开关由适配器映射到各平台 SDK。
+当前 [Bugly 专业版](https://bugly.tds.tencent.com/docs/sdk/android/)需要 App ID + App Key，
+[友盟](https://devs.umeng.com/docs/193624/detail/194590)使用 App Key + channel。具体客户端值仍须按供应商与平台申请，不能因字段同名而互用。
+宿主已有的品牌、构建类型、版本、build number 和授权后的安装标识作为运行上下文传入；组件不维护品牌清单或业务环境配置。
+配置中的 `brandId` / `environment` 另表示凭据适用范围，须与真实上下文匹配，不应直接复制当前构建值来绕过校验。
+`environment` 为 `debug` / `qa` / `release`；后端 test/production、推广渠道、厂商服务区域分别处理。
+这些通用字段不保证厂商报表自动按品牌/环境分组：iOS native 适配不设置品牌/环境标签，OHOS 友盟没有覆写安装标识、版本/build 的公开入口。
+需要严格隔离时应使用对应项目凭据；不复用 channel 充当品牌或环境，也不把统一接口说成各 SDK 元数据能力完全相同。
+客户端配置不包含控制台 Token、符号上传密钥或服务端 API 凭据；新供应商所需参数由其适配组件维护。
+
+配置来源与 SDK 依赖选择应分开：未来可由宿主现有配置接口/缓存提供同一份运行配置，接口只能启用包内已有且受支持的实现。
+当前版本只验收构建配置；OHOS 初始化桥尚未透传完整运行配置，不能宣称已支持接口下发。后续接入先采用进程启动快照，
+分别验证配置范围、隐私准入和能力；初始化后更换凭据、厂商或关闭采集的语义取决于真实 SDK，不承诺热重配。
+
 ## 最小进程接线
 
 ```kotlin
