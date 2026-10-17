@@ -2,7 +2,7 @@
 
 本库提供 Core、可选网络/通知及 Bugly / 友盟适配，CMP/Kuikly 是消费方。五种消费入口、公开功能组、平台限制及 **0.2.0-rc.12** 的验证范围见 [功能与平台差异](docs/功能与平台差异.md)。发布状态以对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.12) 为准；设备验收边界见功能页。
 
-**已发布 Maven rc.15 / 原生 rc.13**：Bugly / 友盟适配独立远程发布，默认 `none` 不引入供应商 SDK。统一配置、隐私门禁回调、初始化状态和有界日志队列位于 core；可选 Kuikly 组件只提供 OHOS transport。依赖选择、能力限制和最小宿主代码见[可选诊断 SDK](docs/可选诊断SDK.md)。[rc.15 正式远程消费者门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39008497155)已通过；原生渠道沿用 rc.13 验收。未发布的 OHOS 完整运行配置补丁见可选 SDK 文档，不能复用旧版本门禁证明。
+**rc.16 发布候选：Maven / OHOS HAR rc.16，iOS Git Pods rc.13**：Bugly / 友盟适配独立远程发布，默认 `none` 不引入供应商 SDK。统一配置、隐私门禁回调、初始化状态和有界日志队列位于 core；可选 Kuikly 组件只提供 OHOS transport。依赖选择、能力限制和最小宿主代码见[可选诊断 SDK](docs/可选诊断SDK.md)。[rc.15 正式远程消费者门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39008497155)已通过；原生渠道沿用 rc.13 验收。rc.16 的 OHOS 完整运行配置补丁见可选 SDK 文档，发布前以本次候选的源码、归档和公开消费门禁为准。
 
 rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037fa2b31864622706b60`）：`diagnostics-ktor` 增加 `DiagnosticStore.openFileChannel`，由宿主上传 scope 持有，有界读取并提供 EOF/close 屏障；此 API 首次进入 rc.11；发布与远程消费状态以精确 Release 和门禁回执为准。接线和验证范围见[逐文件上传](docs/接入指南.md#ktor-流式桥接rc11)。
 

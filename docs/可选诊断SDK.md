@@ -1,16 +1,16 @@
 # 可选诊断 SDK
 
-已发布的 `0.2.0-rc.15` Maven 将 Bugly、友盟实现迁到独立远程组件。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
+`0.2.0-rc.16` 发布候选以独立 Maven 组件提供 Bugly、友盟适配。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
 
 ## 依赖与职责
 
 | 平台 | Bugly 入口 | 友盟入口 |
 | --- | --- | --- |
-| Android Maven | `diagnostics-bugly` rc.15 | `diagnostics-umeng` rc.15 |
+| Android Maven | `diagnostics-bugly` rc.16 | `diagnostics-umeng` rc.16 |
 | iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.13 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.13 |
 | OHOS Release HAR | `DiagnosticsCore.har` + `DiagnosticsBugly.har` | `DiagnosticsCore.har` + `DiagnosticsUmeng.har` |
 
-iOS Git Pods 与 OHOS HAR 保持已冻结的 rc.13；rc.14/rc.15 只修 Maven 的 Android 依赖闭包，公共协议未变。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
+iOS Git Pods 保持已验收的 rc.13；Maven 与 OHOS HAR 使用 rc.16。rc.16 扩展 OHOS 完整运行配置载荷，原有四参构造器和无载荷请求保持兼容；rc.14/rc.15 的 Android 依赖修复继续保留。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
 
 对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主默认选择 `none`，本期提供 `bugly` / `umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
 
@@ -34,11 +34,11 @@ core 的 Android runtime 显式提供同版 `kotlinx-coroutines-android`，确�
 客户端配置不包含控制台 Token、符号上传密钥或服务端 API 凭据；新供应商所需参数由其适配组件维护。
 
 配置来源与 SDK 依赖选择应分开：未来可由宿主现有配置接口/缓存提供同一份运行配置，接口只能启用包内已有且受支持的实现。
-当前已发布版本只验收构建配置，不能宣称已支持接口下发。后续接入先采用进程启动快照，
+宿主当前仍只接构建配置，不能宣称已实现配置接口下发。后续接入先采用进程启动快照，
 分别验证配置范围、隐私准入和能力；初始化后更换凭据、厂商或关闭采集的语义取决于真实 SDK，不承诺热重配。
 
-未发布的 OHOS 配置补丁扩展现有 `initialize` 请求：Kotlin 透传完整 `configuration`，原生 Module 校验类型、品牌、环境、安装 provider 和能力后冻结首次有效快照；同配置及安装身份的页面重接复用同一 Promise，异配置或身份明确拒绝。旧请求不带载荷时仍使用构建配置，失败 Promise 也不自动重试。
-宿主打包选择须独立于运行配置；原生 Runtime 第五个可选参数 `installedProvider` 声明包内唯一实现，省略时沿用构建配置的 provider，兼容现有四参调用。缺客户端参数时可保留显式选中的 SDK 而以 `none` 运行；接入配置接口前升级到包含此补丁的新 Maven/HAR，并传入真实安装选择。补丁源码提交 `349276c` 已通过[远程源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010121240)，三个 HAR 已由真实 Hvigor 独立重新构建并校验源码 API 与摘要；补丁尚未发布，不以 rc.15 / 原生 rc.13 的旧回执代替此验证，也不将编译与替身测试当作设备或真实接口下发验收。
+rc.16 的 OHOS 配置补丁扩展现有 `initialize` 请求：Kotlin 透传完整 `configuration`，原生 Module 校验类型、品牌、环境、安装 provider 和能力后冻结首次有效快照；同配置及安装身份的页面重接复用同一 Promise，异配置或身份明确拒绝。旧请求不带载荷时仍使用构建配置，失败 Promise 也不自动重试。
+宿主打包选择须独立于运行配置；原生 Runtime 第五个可选参数 `installedProvider` 声明包内唯一实现，省略时沿用构建配置的 provider，兼容现有四参调用。缺客户端参数时可保留显式选中的 SDK 而以 `none` 运行；接入配置接口前升级到包含此补丁的新 Maven/HAR，并传入真实安装选择。补丁源码提交 `349276c` 已通过[远程源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010121240)，三个 HAR 已由真实 Hvigor 独立重新构建并校验源码 API 与摘要；rc.16 发布以本版源码、冻结归档和公开消费门禁为准，不以 rc.15 / 原生 rc.13 的旧回执代替，也不将编译与替身测试当作设备或真实接口下发验收。
 `configure` 只接受首次调用；接口/缓存必须先解析为确定快照，不能先用 `none` 占位再等待网络重复配置。
 
 ## 最小进程接线
