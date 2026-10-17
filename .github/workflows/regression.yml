@@ -212,9 +212,11 @@ jobs:
           for module in core bugly umeng; do
             publications+=(":diagnostics-$module:publishKotlinMultiplatformPublicationToStagingRepository" ":diagnostics-$module:publishAndroidReleasePublicationToStagingRepository")
           done
-          VERSION=source-r8 python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/source-r8-publish.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info "${publications[@]}" --no-daemon --max-workers=1
+          # 每个受测 SHA 使用独立坐标，避免旧 staging 缓存；三组消费复用已解析的不可变插件依赖。
+          SOURCE_R8_VERSION="source-r8-${GITHUB_SHA}"
+          VERSION="$SOURCE_R8_VERSION" python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/source-r8-publish.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info "${publications[@]}" --no-daemon --max-workers=1
           for provider in none bugly umeng; do
-            python3 scripts/ci-run.py --no-progress-seconds 300 --log "ci-diagnostics/source-r8-$provider.log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer :r8-app:minifyReleaseWithR8 :r8-app:verifyR8Release -PdiagnosticsVersion=source-r8 -PdiagnosticsMavenRepo="$PWD/build/maven" -PdiagnosticsProviders=true -PdiagnosticsProvider="$provider" --refresh-dependencies --no-daemon --max-workers=1
+            python3 scripts/ci-run.py --no-progress-seconds 300 --log "ci-diagnostics/source-r8-$provider.log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer :r8-app:minifyReleaseWithR8 :r8-app:verifyR8Release -PdiagnosticsVersion="$SOURCE_R8_VERSION" -PdiagnosticsMavenRepo="$PWD/build/maven" -PdiagnosticsProviders=true -PdiagnosticsProvider="$provider" --no-daemon --max-workers=1
           done
       - name: Verify optional OHOS native and Renderer contracts
         if: needs.changes.outputs.source == 'true'
