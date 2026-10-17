@@ -1,6 +1,6 @@
 # 可选诊断 SDK
 
-`0.2.0-rc.16` 发布候选以独立 Maven 组件提供 Bugly、友盟适配。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
+`0.2.0-rc.16` 以独立 Maven 组件提供 Bugly、友盟适配。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
 
 ## 依赖与职责
 
@@ -38,7 +38,7 @@ core 的 Android runtime 显式提供同版 `kotlinx-coroutines-android`，确�
 分别验证配置范围、隐私准入和能力；初始化后更换凭据、厂商或关闭采集的语义取决于真实 SDK，不承诺热重配。
 
 rc.16 的 OHOS 配置补丁扩展现有 `initialize` 请求：Kotlin 透传完整 `configuration`，原生 Module 校验类型、品牌、环境、安装 provider 和能力后冻结首次有效快照；同配置及安装身份的页面重接复用同一 Promise，异配置或身份明确拒绝。旧请求不带载荷时仍使用构建配置，失败 Promise 也不自动重试。
-宿主打包选择须独立于运行配置；原生 Runtime 第五个可选参数 `installedProvider` 声明包内唯一实现，省略时沿用构建配置的 provider，兼容现有四参调用。缺客户端参数时可保留显式选中的 SDK 而以 `none` 运行；接入配置接口前升级到包含此补丁的新 Maven/HAR，并传入真实安装选择。补丁源码提交 `349276c` 已通过[远程源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010121240)，三个 HAR 已由真实 Hvigor 独立重新构建并校验源码 API 与摘要；rc.16 发布以本版源码、冻结归档和公开消费门禁为准，不以 rc.15 / 原生 rc.13 的旧回执代替，也不将编译与替身测试当作设备或真实接口下发验收。
+宿主打包选择须独立于运行配置；原生 Runtime 第五个可选参数 `installedProvider` 声明包内唯一实现，省略时沿用构建配置的 provider，兼容现有四参调用。缺客户端参数时可保留显式选中的 SDK 而以 `none` 运行；接入配置接口前升级到包含此补丁的新 Maven/HAR，并传入真实安装选择。rc.16 源码提交 `ccf549c` 已通过[远程源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010793210)，三个 HAR 已由真实 Hvigor 独立重新构建并校验源码 API 与摘要；rc.16 发布以本版源码、冻结归档和公开消费门禁为准，不以 rc.15 / 原生 rc.13 的旧回执代替，也不将编译与替身测试当作设备或真实接口下发验收。
 `configure` 只接受首次调用；接口/缓存必须先解析为确定快照，不能先用 `none` 占位再等待网络重复配置。
 
 ## 最小进程接线
