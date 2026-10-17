@@ -89,7 +89,8 @@ PYTHON
         fi
     fi
 fi
-if [[ "$ci_probe_error" == 0 ]] && ci_address="$(python3 - "$ci_probe" "$ci_expected_address" <<'PYTHON'
+ci_verified_address() {
+    python3 - "$1" "$2" <<'PYTHON'
 import ipaddress, sys
 parts = sys.argv[1].split()
 if len(parts) != 3 or parts[0] != '200' or (sys.argv[2] and parts[1] != sys.argv[2]):
@@ -102,9 +103,19 @@ if not address.is_global or address.is_multicast:
     sys.exit(1)
 print(address)
 PYTHON
-)"; then
-    if printf '%s %s\n' "$ci_address" "$ci_dns_host" | sudo tee -a /etc/hosts >/dev/null; then
-        echo "CI fork HTTPS verified; job host address reused: $ci_dns_host $ci_address"
+}
+if [[ "$ci_probe_error" == 0 ]] && ci_address="$(ci_verified_address "$ci_probe" "$ci_expected_address")"; then
+    ci_hosts="$ci_address $ci_dns_host"
+    if [[ -n "$ci_fallback_address" && "$ci_fallback_address" != "$ci_address" ]]; then
+        # 单个地址探测成功后仍会间歇超时；保留两个已验证地址供 HTTP 客户端连接失败时切换。
+        if ci_extra_probe="$("${ci_curl[@]}" --resolve "$ci_dns_host:443:$ci_fallback_address" --output "$ci_probe_dir/fallback.pom" --write-out '%{http_code} %{remote_ip} %{time_connect}' "$ci_marker_url")" && ci_extra_address="$(ci_verified_address "$ci_extra_probe" "$ci_fallback_address")"; then
+            ci_hosts="$ci_hosts"$'\n'"$ci_extra_address $ci_dns_host"
+        else
+            echo "CI fork additional address not verified; keeping the verified address only"
+        fi
+    fi
+    if printf '%s\n' "$ci_hosts" | sudo tee -a /etc/hosts >/dev/null; then
+        echo "CI fork HTTPS verified; job host addresses reused: $ci_hosts"
     else
         echo "CI fork host write unavailable; continuing normal Gradle resolution"
     fi

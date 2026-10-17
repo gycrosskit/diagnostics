@@ -9,6 +9,7 @@ import tempfile
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts/ci-pin-fork-host.sh'
 HOST = 'maven.eazytec-cloud.com'
 ADDRESS = '61.177.127.227'
+SECOND_ADDRESS = '36.153.109.99'
 ANSWER = {'Status': 0, 'Question': [{'name': HOST + '.', 'type': 1}],
           'Answer': [{'name': HOST + '.', 'type': 1, 'data': ADDRESS}]}
 
@@ -31,7 +32,12 @@ if url.startswith('https://cloudflare-dns.com/'):
     Path(args[args.index('--output') + 1]).write_text(os.environ['MOCK_ANSWER'])
     print('200', end='')
 elif '--resolve' in args:
-    assert args[args.index('--resolve') + 1] == 'maven.eazytec-cloud.com:443:61.177.127.227'
+    assert args[args.index('--resolve') + 1] == 'maven.eazytec-cloud.com:443:' + os.environ['MOCK_RESOLVE_ADDRESS']
+    if os.environ['MOCK_CASE'] in ['dual_tls', 'dual_http', 'dual_timeout']:
+        sys.exit({'dual_tls': 35, 'dual_http': 22, 'dual_timeout': 28}[os.environ['MOCK_CASE']])
+    if os.environ['MOCK_CASE'] in ['dual_valid', 'dual_mismatch']:
+        print('200 ' + ('8.8.8.8' if os.environ['MOCK_CASE'] == 'dual_mismatch' else os.environ['MOCK_RESOLVE_ADDRESS']) + ' 0.100000', end='')
+        sys.exit(0)
     if os.environ['MOCK_CASE'] == 'doh_tls':
         sys.exit(35)
     if os.environ['MOCK_CASE'] in ['fallback_tls', 'fallback_http', 'fallback_unreachable', 'fallback_read_timeout']:
@@ -79,7 +85,8 @@ Path(os.environ['MOCK_HOSTS']).write_text(sys.stdin.read())
              'fallback_dns', 'fallback_refused',
              'fallback_tls', 'fallback_http', 'fallback_unreachable', 'fallback_read_timeout', 'fallback_mismatch',
              'doh_bad_status', 'doh_wrong_question', 'doh_wrong_owner', 'doh_private', 'doh_tls', 'doh_mismatch', 'doh_valid',
-             'doh_boolean_question_type', 'doh_boolean_answer_type']
+             'doh_boolean_question_type', 'doh_boolean_answer_type',
+             'dual_valid', 'dual_tls', 'dual_http', 'dual_timeout', 'dual_mismatch', 'dual_same', 'dual_private', 'dual_invalid']
     for case in cases:
         answer = json.loads(json.dumps(ANSWER))
         if case == 'doh_bad_status':
@@ -95,20 +102,24 @@ Path(os.environ['MOCK_HOSTS']).write_text(sys.stdin.read())
         if case == 'doh_boolean_answer_type':
             answer['Answer'][0]['type'] = True
         environment.update(MOCK_CASE=case, MOCK_ANSWER=json.dumps(answer),
-                           CI_FORK_HOST_FALLBACK_IP=('127.0.0.1' if case == 'fallback_private' else 'invalid' if case == 'fallback_invalid' else ADDRESS),
+                           MOCK_RESOLVE_ADDRESS=SECOND_ADDRESS if case.startswith('dual_') and case != 'dual_same' else ADDRESS,
+                           CI_FORK_HOST_FALLBACK_IP=('127.0.0.1' if case in ['fallback_private', 'dual_private'] else 'invalid' if case in ['fallback_invalid', 'dual_invalid'] else SECOND_ADDRESS if case.startswith('dual_') and case != 'dual_same' else ADDRESS),
                            GITHUB_ACTIONS='false' if case == 'outside_ci' else 'true',
                            RUNNER_ENVIRONMENT='self-hosted' if case == 'self_hosted' else 'github-hosted')
-        if not case.startswith('fallback_') and case not in ['tls', 'http', 'tls_timeout', 'read_timeout', 'outside_ci', 'self_hosted']:
+        if not case.startswith(('fallback_', 'dual_')) and case not in ['tls', 'http', 'tls_timeout', 'read_timeout', 'outside_ci', 'self_hosted']:
             environment['CI_FORK_HOST_FALLBACK_IP'] = ''
         for name in ['hosts', 'calls']:
             (root / name).unlink(missing_ok=True)
         result = subprocess.run(['bash', str(SCRIPT)], env=environment, capture_output=True, text=True)
         assert result.returncode == 0, (case, result.stderr)
-        pinned = case in ['normal', 'doh_valid', 'timeout_recovered', 'connect_recovered', 'fallback_valid', 'fallback_dns', 'fallback_refused']
+        pinned = case in ['normal', 'doh_valid', 'timeout_recovered', 'connect_recovered', 'fallback_valid', 'fallback_dns', 'fallback_refused'] or case.startswith('dual_')
         assert (root / 'hosts').exists() == pinned, case
-        assert ('job host address reused' in result.stdout) == pinned, case
+        assert ('job host addresses reused' in result.stdout) == pinned, case
         if pinned:
-            assert (root / 'hosts').read_text() == ADDRESS + ' ' + HOST + '\n'
+            expected = ADDRESS + ' ' + HOST + '\n'
+            if case == 'dual_valid':
+                expected += SECOND_ADDRESS + ' ' + HOST + '\n'
+            assert (root / 'hosts').read_text() == expected, (case, result.stdout)
         calls = (root / 'calls').read_text() if (root / 'calls').exists() else ''
         assert ('cloudflare-dns.com' in calls) == case.startswith('doh_'), case
         if case in ['outside_ci', 'self_hosted']:
@@ -117,6 +128,8 @@ Path(os.environ['MOCK_HOSTS']).write_text(sys.stdin.read())
             assert len(calls.splitlines()) == 3, (case, calls, result.stdout, result.stderr)
         if case in ['tls', 'http', 'tls_timeout', 'read_timeout']:
             assert len(calls.splitlines()) == 1, case
+        if case.startswith('dual_'):
+            assert len(calls.splitlines()) == (1 if case in ['dual_same', 'dual_private', 'dual_invalid'] else 2), (case, calls)
         if case.startswith('fallback_'):
             assert len(calls.splitlines()) == (3 if case in ['fallback_private', 'fallback_invalid'] else 2), case
     print(f'fork host trust boundaries: {len(cases)} cases passed (all hosts writes mocked)')
