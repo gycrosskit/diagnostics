@@ -49,6 +49,15 @@ kotlin {
             jvmMain.get().dependsOn(networkJvmMain)
             androidMain.get().dependsOn(networkJvmMain)
         }
+        if (providers.gradleProperty("diagnosticsProviders").orNull == "true" && consumerVersion != "0.1.0" && consumerVersion !in (1..12).map { "0.2.0-rc.$it" }) {
+            commonMain.get().kotlin.srcDir("src/sdkCommonMain/kotlin")
+            androidMain.get().kotlin.srcDir("src/sdkAndroidMain/kotlin")
+            androidMain.dependencies {
+                implementation("com.github.gycrosskit.diagnostics:diagnostics-bugly:$consumerVersion")
+                implementation("com.github.gycrosskit.diagnostics:diagnostics-umeng:$consumerVersion")
+            }
+            ohosArm64Main.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-kuikly:$consumerVersion") }
+        }
         commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-core:${providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.11").get()}") }
         commonTest.dependencies { implementation(kotlin("test")) }
         jvmTest.dependencies { implementation(kotlin("test")) }

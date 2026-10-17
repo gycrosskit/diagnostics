@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "DiagnosticsUmeng",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ]
+  }
+}

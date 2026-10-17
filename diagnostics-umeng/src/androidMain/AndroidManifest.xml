@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+    <uses-permission android:name="freemme.permission.msa" tools:node="remove" />
+    <application>
+        <!-- 崩溃统计不需要内存泄漏性能子进程。 -->
+        <service android:name="com.efs.sdk.memleaksdk.monitor.UMonitorService" tools:node="remove" />
+    </application>
+</manifest>

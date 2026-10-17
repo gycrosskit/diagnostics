@@ -87,7 +87,7 @@ jobs:
           python3 - <<'PROVENANCE'
           import hashlib, json, os, subprocess
           from pathlib import Path
-          files = subprocess.check_output(['git', 'ls-files', 'diagnostics-core', 'diagnostics-dingtalk', 'diagnostics-ktor', 'diagnostics-okhttp', 'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle', 'scripts/archive-prebuilt.sh', 'jitpack-metadata.py', 'verification/check-maven.py']).decode().splitlines()
+          files = subprocess.check_output(['git', 'ls-files', 'diagnostics-core', 'diagnostics-dingtalk', 'diagnostics-ktor', 'diagnostics-okhttp', 'diagnostics-bugly', 'diagnostics-umeng', 'diagnostics-kuikly', 'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle', 'scripts/archive-prebuilt.sh', 'jitpack-metadata.py', 'verification/check-maven.py']).decode().splitlines()
           hashes = {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(files)}
           Path('build/prebuilt/provenance.json').write_text(json.dumps({'version': os.environ['VERSION'], 'sourceCommit': os.environ['GITHUB_SHA'], 'runId': os.environ['GITHUB_RUN_ID'], 'sourceFiles': hashes, 'archiveSha256': hashlib.sha256(Path('build/prebuilt/diagnostics-maven.tar.gz').read_bytes()).hexdigest()}, indent=2) + '\n')
           PROVENANCE
@@ -152,6 +152,9 @@ jobs:
       - name: Check fork host trust boundaries
         if: needs.changes.outputs.source == 'true'
         run: python3 verification/ci/test_fork_host.py
+      - name: Check optional OHOS HAR archive contract
+        if: needs.changes.outputs.source == 'true'
+        run: python3 verification/test_ohos_sdk_archive.py
       - name: Check source cache and test execution policy
         if: needs.changes.outputs.source == 'true'
         run: python3 verification/ci/test_cache_contract.py
@@ -192,12 +195,19 @@ jobs:
       - run: bash scripts/ci-pin-fork-host.sh
         timeout-minutes: 3
         if: needs.changes.outputs.source == 'true'
-      - run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/android.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:jvmTest :diagnostics-core:testDebugUnitTest :diagnostics-dingtalk:jvmTest :diagnostics-dingtalk:testDebugUnitTest :diagnostics-ktor:jvmTest :diagnostics-ktor:testDebugUnitTest :diagnostics-okhttp:jvmTest :diagnostics-okhttp:compileDebugKotlinAndroid --no-daemon --max-workers=1
+      - run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/android.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:jvmTest :diagnostics-core:testDebugUnitTest :diagnostics-dingtalk:jvmTest :diagnostics-dingtalk:testDebugUnitTest :diagnostics-ktor:jvmTest :diagnostics-ktor:testDebugUnitTest :diagnostics-okhttp:jvmTest :diagnostics-okhttp:compileDebugKotlinAndroid :diagnostics-bugly:testDebugUnitTest :diagnostics-umeng:testDebugUnitTest --no-daemon --max-workers=1
         timeout-minutes: 35
         if: needs.changes.outputs.source == 'true'
-      - run: python3 scripts/assert-test-results.py diagnostics-core/build/test-results/jvmTest diagnostics-dingtalk/build/test-results/jvmTest diagnostics-ktor/build/test-results/jvmTest diagnostics-okhttp/build/test-results/jvmTest diagnostics-core/build/test-results/testDebugUnitTest diagnostics-dingtalk/build/test-results/testDebugUnitTest diagnostics-ktor/build/test-results/testDebugUnitTest
+      - run: python3 scripts/assert-test-results.py diagnostics-core/build/test-results/jvmTest diagnostics-dingtalk/build/test-results/jvmTest diagnostics-ktor/build/test-results/jvmTest diagnostics-okhttp/build/test-results/jvmTest diagnostics-core/build/test-results/testDebugUnitTest diagnostics-dingtalk/build/test-results/testDebugUnitTest diagnostics-ktor/build/test-results/testDebugUnitTest diagnostics-bugly/build/test-results/testDebugUnitTest diagnostics-umeng/build/test-results/testDebugUnitTest
         timeout-minutes: 35
         if: needs.changes.outputs.source == 'true'
+      - name: Verify optional OHOS native and Renderer contracts
+        if: needs.changes.outputs.source == 'true'
+        run: |
+          npm install --prefix "$RUNNER_TEMP/diagnostics-typescript" --no-save --ignore-scripts typescript@5.8.3
+          export TYPESCRIPT_PATH="$RUNNER_TEMP/diagnostics-typescript/node_modules/typescript/lib/typescript.js"
+          node --test verification/ohos-sdk.cjs
+          python3 verification/test_ohos_diagnostics_bridge.py --resolve-dependencies
       - name: Explain lightweight completion
         if: ${{ !(needs.changes.outputs.source == 'true') }}
         run: echo 'No build is required for this event and scope.'
@@ -252,11 +262,15 @@ jobs:
         run: |
           if [[ "$(uname -m)" == arm64 ]]; then simulator=iosSimulatorArm64Test; else simulator=iosX64Test; fi
           # 复用同一 Gradle JVM 的成功 DNS 缓存；编译后的新进程曾在测试启动前解析失败。
-          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/native.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:compileKotlinIosArm64 :diagnostics-dingtalk:compileKotlinIosArm64 :diagnostics-ktor:compileKotlinIosArm64 :diagnostics-core:compileKotlinOhosArm64 :diagnostics-dingtalk:compileKotlinOhosArm64 :diagnostics-ktor:compileKotlinOhosArm64 ":diagnostics-core:$simulator" ":diagnostics-dingtalk:$simulator" ":diagnostics-ktor:$simulator" --no-daemon --max-workers=1
+          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/native.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:compileKotlinIosArm64 :diagnostics-dingtalk:compileKotlinIosArm64 :diagnostics-ktor:compileKotlinIosArm64 :diagnostics-core:compileKotlinOhosArm64 :diagnostics-dingtalk:compileKotlinOhosArm64 :diagnostics-ktor:compileKotlinOhosArm64 :diagnostics-kuikly:compileKotlinOhosArm64 ":diagnostics-core:$simulator" ":diagnostics-dingtalk:$simulator" ":diagnostics-ktor:$simulator" --no-daemon --max-workers=1
           python3 scripts/assert-test-results.py "diagnostics-core/build/test-results/$simulator" "diagnostics-dingtalk/build/test-results/$simulator" "diagnostics-ktor/build/test-results/$simulator"
       - run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/native.log -- xcrun --sdk iphonesimulator swiftc -typecheck -target "$(uname -m)-apple-ios14.0-simulator" -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" ios-support/*.swift
         timeout-minutes: 10
         if: needs.changes.outputs.source == 'true'
+      - name: Verify independent native SDK Pods and adapter behavior
+        if: needs.changes.outputs.source == 'true'
+        timeout-minutes: 25
+        run: python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/ios-sdk.log -- bash scripts/test-ios-sdk.sh
       - name: Explain lightweight completion
         if: ${{ !(needs.changes.outputs.source == 'true') }}
         run: echo 'No build is required for this event and scope.'
@@ -314,7 +328,7 @@ jobs:
         run: |
           network=true
           case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
-          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-android.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer jvmTest testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
+          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-android.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer jvmTest testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" -PdiagnosticsProviders=true --refresh-dependencies --no-daemon --max-workers=1
       - name: Explain lightweight completion
         if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) }}
         run: echo 'No build is required for this event and scope.'
@@ -371,7 +385,7 @@ jobs:
           network=true
           case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
           if [[ "$(uname -m)" == arm64 ]]; then simulator=linkDebugFrameworkIosSimulatorArm64; simulator_test=iosSimulatorArm64Test; else simulator=linkDebugFrameworkIosX64; simulator_test=iosX64Test; fi
-          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-native.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" "$simulator_test" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" --refresh-dependencies --no-daemon --max-workers=1
+          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-native.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" "$simulator_test" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" -PdiagnosticsProviders=true --refresh-dependencies --no-daemon --max-workers=1
       - name: Explain lightweight completion
         if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) }}
         run: echo 'No build is required for this event and scope.'

@@ -1,0 +1,12 @@
+{
+  "name": "@gycrosskit/diagnostics-bugly",
+  "version": "0.2.0-rc.13",
+  "description": "HarmonyOS 可选诊断 bugly",
+  "main": "Index.ets",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/gycrosskit/diagnostics",
+  "dependencies": {
+    "@gycrosskit/diagnostics-core": "https://github.com/gycrosskit/diagnostics/releases/download/0.2.0-rc.13/DiagnosticsCore.har",
+    "bugly": "0.7.2"
+  }
+}

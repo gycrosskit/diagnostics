@@ -1,0 +1,30 @@
+plugins { kotlin("multiplatform"); id("com.android.library"); `maven-publish` }
+
+kotlin {
+    androidTarget {
+        publishLibraryVariants("release")
+        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+    sourceSets {
+        androidMain.dependencies {
+            api(project(":diagnostics-core"))
+            implementation("com.umeng.umsdk:common:10.0.1")
+            implementation("com.umeng.umsdk:asms:1.8.7.2")
+            implementation("com.umeng.umsdk:apm:2.1.0")
+        }
+        androidUnitTest.dependencies {
+            implementation(kotlin("test-junit"))
+            implementation("org.robolectric:robolectric:4.16.1")
+        }
+    }
+}
+
+android {
+    namespace = "io.github.gycrosskit.diagnostics.umeng"
+    compileSdk = 36
+    defaultConfig { minSdk = 24 }
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    testOptions.unitTests.isIncludeAndroidResources = true
+}
+
+publishing { repositories.maven { name = "staging"; url = uri(rootProject.layout.buildDirectory.dir("maven")) } }
