@@ -108,7 +108,7 @@ if [[ "$ci_probe_error" == 0 ]] && ci_address="$(ci_verified_address "$ci_probe"
     ci_hosts="$ci_address $ci_dns_host"
     if [[ -n "$ci_fallback_address" && "$ci_fallback_address" != "$ci_address" ]]; then
         # 单个地址探测成功后仍会间歇超时；保留两个已验证地址供 HTTP 客户端连接失败时切换。
-        if ci_extra_probe="$("${ci_curl[@]}" --resolve "$ci_dns_host:443:$ci_fallback_address" --output "$ci_probe_dir/fallback.pom" --write-out '%{http_code} %{remote_ip} %{time_connect}' "$ci_marker_url")" && ci_extra_address="$(ci_verified_address "$ci_extra_probe" "$ci_fallback_address")"; then
+        if ci_extra_probe="$("${ci_curl[@]}" --retry 2 --retry-delay 2 --retry-max-time 45 --retry-connrefused --connect-timeout 8 --max-time 20 --resolve "$ci_dns_host:443:$ci_fallback_address" --output "$ci_probe_dir/fallback.pom" --write-out '%{http_code} %{remote_ip} %{time_connect}' "$ci_marker_url")" && ci_extra_address="$(ci_verified_address "$ci_extra_probe" "$ci_fallback_address")"; then
             ci_hosts="$ci_hosts"$'\n'"$ci_extra_address $ci_dns_host"
         else
             echo "CI fork additional address not verified; keeping the verified address only"

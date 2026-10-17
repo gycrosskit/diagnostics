@@ -33,6 +33,14 @@ if url.startswith('https://cloudflare-dns.com/'):
     print('200', end='')
 elif '--resolve' in args:
     assert args[args.index('--resolve') + 1] == 'maven.eazytec-cloud.com:443:' + os.environ['MOCK_RESOLVE_ADDRESS']
+    if os.environ['MOCK_CASE'].startswith('dual_'):
+        for option, value in [('--retry', '2'), ('--retry-delay', '2'), ('--retry-max-time', '45')]:
+            assert args[args.index(option) + 1] == value
+        assert '--retry-connrefused' in args and '--retry-all-errors' not in args
+        assert args[args.index('--connect-timeout', args.index('--retry')) + 1] == '8'
+        assert args[args.index('--max-time', args.index('--retry')) + 1] == '20'
+    else:
+        assert '--retry' not in args
     if os.environ['MOCK_CASE'] in ['dual_tls', 'dual_http', 'dual_timeout']:
         sys.exit({'dual_tls': 35, 'dual_http': 22, 'dual_timeout': 28}[os.environ['MOCK_CASE']])
     if os.environ['MOCK_CASE'] in ['dual_valid', 'dual_mismatch']:
