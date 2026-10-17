@@ -1,10 +1,7 @@
 package consumer
 
 import android.content.Context
-import io.github.gycrosskit.diagnostics.bugly.BuglyDiagnosticSdkBridge
-import io.github.gycrosskit.diagnostics.umeng.UmengDiagnosticSdkBridge
-import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkBridge
+import io.github.gycrosskit.diagnostics.sdk.installedAndroidDiagnosticSdkBridge
 
-// 只验证正式远程 API，不创建真实客户端或启动供应商 SDK。
-fun buglyCrashFactory(context: Context): () -> DiagnosticSdkBridge = { BuglyDiagnosticSdkBridge(context) }
-fun umengFactory(context: Context): () -> DiagnosticSdkBridge = { UmengDiagnosticSdkBridge(context) }
+// 仅编译公共入口；真实应用在持久化隐私授权后才调用。
+fun installedDiagnosticFactory(context: Context) = { installedAndroidDiagnosticSdkBridge(context) }

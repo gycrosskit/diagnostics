@@ -7,6 +7,7 @@ import { DiagnosticSdk, DiagnosticSdkConfiguration } from '@gycrosskit/diagnosti
 export class UmengDiagnosticSdk implements DiagnosticSdk {
   async initialize(context: common.UIAbilityContext, configuration: DiagnosticSdkConfiguration,
     _deviceId: string, _versionName: string, _buildNumber: string): Promise<void> {
+    if (configuration.provider !== 'umeng') { throw new Error('diagnostic_sdk_provider_mismatch'); }
     if (configuration.performance) { throw new Error('diagnostic_sdk_performance_unsupported'); }
     if (configuration.remoteLogs) { throw new Error('umeng_ohos_remote_logs_unsupported'); }
     if (!configuration.crashes) { return; }

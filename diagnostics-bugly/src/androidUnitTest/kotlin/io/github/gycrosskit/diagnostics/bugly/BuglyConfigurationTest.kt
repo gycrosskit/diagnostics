@@ -1,5 +1,7 @@
 package io.github.gycrosskit.diagnostics.bugly
 
+import io.github.gycrosskit.diagnostics.sdk.AndroidDiagnosticSdkFactory
+import java.util.ServiceLoader
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkConfiguration
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkProvider
 import com.tencent.bugly.library.BuglyBuilder
@@ -76,5 +78,35 @@ class BuglyConfigurationTest {
         val handler = Thread.getDefaultUncaughtExceptionHandler()
         BuglyDiagnosticSdkBridge(RuntimeEnvironment.getApplication()).writeLog("ERROR", "App", "fixture")
         kotlin.test.assertSame(handler, Thread.getDefaultUncaughtExceptionHandler())
+    }
+
+    @Test
+    fun `published SPI registration creates the provider without initializing its SDK`() {
+        val factories = ServiceLoader.load(AndroidDiagnosticSdkFactory::class.java, AndroidDiagnosticSdkFactory::class.java.classLoader).toList()
+        assertEquals(listOf(BuglyAndroidDiagnosticSdkFactory::class.java), factories.map { it.javaClass })
+        val handler = Thread.getDefaultUncaughtExceptionHandler()
+        assertTrue(factories.single().create(RuntimeEnvironment.getApplication()) is BuglyDiagnosticSdkBridge)
+        kotlin.test.assertSame(handler, Thread.getDefaultUncaughtExceptionHandler())
+    }
+
+    @Test
+    fun `missing credentials fail before changing handlers or creating SDK cache`() = runBlocking<Unit> {
+        val context = RuntimeEnvironment.getApplication()
+        val directory = context.noBackupFilesDir
+        val filesBefore = directory.walkTopDown().map { it.relativeTo(directory).path }.toSet()
+        val handler = Thread.getDefaultUncaughtExceptionHandler()
+        val configurations = listOf(
+            DiagnosticSdkConfiguration(DiagnosticSdkProvider.BUGLY, appId = "", appKey = "fixture"),
+            DiagnosticSdkConfiguration(DiagnosticSdkProvider.BUGLY, appId = "fixture", appKey = " "),
+        )
+        val messages = listOf("Bugly 缺少 appId", "Bugly 缺少 appKey")
+        configurations.forEachIndexed { index, configuration ->
+            val failure = assertFailsWith<IllegalArgumentException> {
+                BuglyDiagnosticSdkBridge(context).initialize(configuration, "installation-id", "1.2.3", "42")
+            }
+            assertEquals(messages[index], failure.message)
+            kotlin.test.assertSame(handler, Thread.getDefaultUncaughtExceptionHandler())
+            assertEquals(filesBefore, directory.walkTopDown().map { it.relativeTo(directory).path }.toSet())
+        }
     }
 }

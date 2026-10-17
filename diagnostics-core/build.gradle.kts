@@ -27,6 +27,6 @@ android {
     namespace = "io.github.gycrosskit.diagnostics"
     compileSdk = 36
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    defaultConfig { minSdk = 24 }
+    defaultConfig { minSdk = 24; consumerProguardFiles("consumer-rules.pro") }
 }
 publishing { repositories.maven { name = "staging"; url = uri(rootProject.layout.buildDirectory.dir("maven")) } }

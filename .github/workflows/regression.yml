@@ -329,6 +329,14 @@ jobs:
           network=true
           case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
           python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-android.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer jvmTest testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" -PdiagnosticsProviders=true --refresh-dependencies --no-daemon --max-workers=1
+          case "$VERSION" in
+            0.1.0|0.2.0-rc.[1-9]|0.2.0-rc.1[0-2]) ;;
+            *)
+              for provider in bugly umeng; do
+                python3 scripts/ci-run.py --no-progress-seconds 300 --log "ci-diagnostics/release-android-$provider.log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" -PdiagnosticsProviders=true -PdiagnosticsProvider="$provider" --refresh-dependencies --no-daemon --max-workers=1
+              done
+              ;;
+          esac
       - name: Explain lightweight completion
         if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) }}
         run: echo 'No build is required for this event and scope.'

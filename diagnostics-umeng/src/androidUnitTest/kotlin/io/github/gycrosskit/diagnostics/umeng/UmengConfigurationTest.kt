@@ -1,5 +1,7 @@
 package io.github.gycrosskit.diagnostics.umeng
 
+import io.github.gycrosskit.diagnostics.sdk.AndroidDiagnosticSdkFactory
+import java.util.ServiceLoader
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkConfiguration
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkProvider
 import com.umeng.umcrash.UMCrash
@@ -76,5 +78,32 @@ class UmengConfigurationTest {
             "installation-id", "1.2.3", "42",
         )
         kotlin.test.assertSame(handler, Thread.getDefaultUncaughtExceptionHandler())
+    }
+
+    @Test
+    fun `published SPI registration creates the provider without initializing its SDK`() {
+        val factories = ServiceLoader.load(AndroidDiagnosticSdkFactory::class.java, AndroidDiagnosticSdkFactory::class.java.classLoader).toList()
+        assertEquals(listOf(UmengAndroidDiagnosticSdkFactory::class.java), factories.map { it.javaClass })
+        val handler = Thread.getDefaultUncaughtExceptionHandler()
+        assertTrue(factories.single().create(RuntimeEnvironment.getApplication()) is UmengDiagnosticSdkBridge)
+        kotlin.test.assertSame(handler, Thread.getDefaultUncaughtExceptionHandler())
+    }
+
+    @Test
+    fun `missing credentials fail before changing handlers or creating SDK cache`() = runBlocking<Unit> {
+        val context = RuntimeEnvironment.getApplication()
+        val directory = context.noBackupFilesDir
+        val filesBefore = directory.walkTopDown().map { it.relativeTo(directory).path }.toSet()
+        val handler = Thread.getDefaultUncaughtExceptionHandler()
+        val configurations = listOf(DiagnosticSdkConfiguration(DiagnosticSdkProvider.UMENG, appKey = " "))
+        val messages = listOf("友盟缺少 appKey")
+        configurations.forEachIndexed { index, configuration ->
+            val failure = assertFailsWith<IllegalArgumentException> {
+                UmengDiagnosticSdkBridge(context).initialize(configuration, "installation-id", "1.2.3", "42")
+            }
+            assertEquals(messages[index], failure.message)
+            kotlin.test.assertSame(handler, Thread.getDefaultUncaughtExceptionHandler())
+            assertEquals(filesBefore, directory.walkTopDown().map { it.relativeTo(directory).path }.toSet())
+        }
     }
 }

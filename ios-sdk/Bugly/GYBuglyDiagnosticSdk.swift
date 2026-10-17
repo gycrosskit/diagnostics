@@ -1,6 +1,6 @@
 import Foundation
 import GYDiagnosticsSdk
-import BuglyPro
+import BuglyProCore
 import TDOS_Diagnose
 
 public final class GYBuglyDiagnosticSdk: GYDiagnosticSdkAdapter {

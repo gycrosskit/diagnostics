@@ -1,7 +1,9 @@
 import Foundation
 import GYDiagnosticsSdk
 import UMCommon
-import UMAPM
+#if GY_DIAGNOSTICS_TEST_STUBS
+import UMAPMHeadersStub
+#endif
 
 public final class GYUmengDiagnosticSdk: GYDiagnosticSdkAdapter {
     private var initialized = false

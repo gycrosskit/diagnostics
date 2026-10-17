@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "repository": "https://github.com/gycrosskit/diagnostics",
   "dependencies": {
-    "@gycrosskit/diagnostics-core": "https://github.com/gycrosskit/diagnostics/releases/download/0.2.0-rc.13/DiagnosticsCore.har",
+    "@gycrosskit/diagnostics-core": "0.2.0-rc.13",
     "bugly": "0.7.2"
   }
 }

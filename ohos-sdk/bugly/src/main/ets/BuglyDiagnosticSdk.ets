@@ -10,6 +10,7 @@ export class BuglyDiagnosticSdk implements DiagnosticSdk {
 
   async initialize(context: common.UIAbilityContext, configuration: DiagnosticSdkConfiguration,
     deviceId: string, versionName: string, buildNumber: string): Promise<void> {
+    if (configuration.provider !== 'bugly') { throw new Error('diagnostic_sdk_provider_mismatch'); }
     if (configuration.performance) { throw new Error('diagnostic_sdk_performance_unsupported'); }
     if (configuration.crashes) {
       const builder = new BuglyBuilder();

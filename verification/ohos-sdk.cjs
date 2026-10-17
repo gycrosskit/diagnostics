@@ -78,8 +78,7 @@ function fixture(provider = 'bugly', overrides = {}, options = {}) {
         createDiagnosticSdk: () => {
           calls.push(['factory']);
           if (provider === 'none') return null;
-          const className = provider === 'bugly' ? 'BuglyDiagnosticSdk' : 'UmengDiagnosticSdk';
-          return new (load(path.join(root, 'ohos-sdk', provider, 'src/main/ets', className + '.ets'))[className])();
+          return load(path.join(root, 'ohos-sdk', provider, 'Index.ets')).createDiagnosticSdk();
         }
       };
       if (name === '@gycrosskit/diagnostics-core') return load(path.join(root, 'ohos-sdk/core/Index.ets'));
@@ -97,8 +96,7 @@ function fixture(provider = 'bugly', overrides = {}, options = {}) {
   const runtime = new Runtime(configuration, () => {
     calls.push(['factory']);
     if (provider === 'none') return null;
-    const className = provider === 'bugly' ? 'BuglyDiagnosticSdk' : 'UmengDiagnosticSdk';
-    return new (load(path.join(root, 'ohos-sdk', provider, 'src/main/ets', className + '.ets'))[className])();
+    return load(path.join(root, 'ohos-sdk', provider, 'Index.ets')).createDiagnosticSdk();
   }, 'chonghe', 'qa');
   return { configuration, calls, runtime, context, load, release,
     initialize: (consent = true) => runtime.initialize(context, consent, provider,
@@ -194,6 +192,14 @@ async function verify() {
   assert.equal(oldReceipt, false);
   assert.equal(newReceipt, 'ready');
   assert.equal(reconnecting.calls.filter(call => call[0] === 'bugly').length, 1, 'page replacement must reuse process initialization');
+  for (const selected of ['bugly', 'umeng']) {
+    const mismatch = fixture(selected);
+    const wrong = selected === 'bugly' ? 'umeng' : 'bugly';
+    const sdk = mismatch.load(path.join(root, 'ohos-sdk', wrong, 'Index.ets')).createDiagnosticSdk();
+    await assert.rejects(sdk.initialize(mismatch.context, mismatch.configuration, 'id', '1', '2'),
+      /diagnostic_sdk_provider_mismatch/);
+    assert.equal(mismatch.calls.length, 0, 'mismatched factory must not touch vendor SDK');
+  }
   const logsOnly = fixture('bugly', { crashes: false });
   await logsOnly.initialize();
   logsOnly.runtime.onAbilityCreated({});

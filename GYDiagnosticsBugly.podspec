@@ -1,6 +1,7 @@
 Pod::Spec.new do |spec|
   spec.name = 'GYDiagnosticsBugly'
   spec.summary = 'Bugly 崩溃与远程日志适配器'
+  spec.module_name = 'GYDiagnosticsProvider'
   spec.version = '0.2.0-rc.13'
   spec.homepage = 'https://github.com/gycrosskit/diagnostics'
   spec.license = { :type => 'Apache-2.0', :file => 'LICENSE' }

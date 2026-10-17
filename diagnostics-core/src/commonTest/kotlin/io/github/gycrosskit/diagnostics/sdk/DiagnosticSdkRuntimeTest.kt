@@ -11,11 +11,16 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiagnosticSdkRuntimeTest {
-    private fun config(provider: DiagnosticSdkProvider = DiagnosticSdkProvider.BUGLY, key: String = "client-key",
+    private fun config(provider: String = DiagnosticSdkProvider.BUGLY, key: String = "client-key",
         brand: String = "brand", environment: String = "qa", logs: Boolean = true) =
         DiagnosticSdkConfiguration(provider, "client-id", key, remoteLogs = logs, brandId = brand, environment = environment)
     private fun runtime(config: DiagnosticSdkConfiguration = config(), factory: () -> DiagnosticSdkBridge) =
         DiagnosticSdkRuntime(config, "brand", "qa", "1.2", "3", factory)
+
+    @Test fun openProviderNeedsNoCoreWhitelist() {
+        assertTrue(config(provider = "volcengine").matches("brand", "qa"))
+        assertFalse(config(provider = "../vendor").matches("brand", "qa"))
+    }
 
     @Test fun noneMissingKeyAndWrongScopeNeverTouchConsentOrFactory() = runTest {
         listOf(config(DiagnosticSdkProvider.NONE), config(key = ""), config(brand = "other"), config(environment = "release"),

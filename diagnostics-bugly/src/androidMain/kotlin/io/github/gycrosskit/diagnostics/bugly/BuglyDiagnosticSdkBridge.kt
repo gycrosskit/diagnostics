@@ -14,7 +14,6 @@ import com.tencent.tddiag.protocol.LogLevel
 import com.tencent.tddiag.protocol.LoggerAdapter
 import java.io.File
 
-
 /** 统一接入 Bugly 崩溃与远程日志；日志只接收通用出口过滤后的副本。 */
 class BuglyDiagnosticSdkBridge(private val context: Context) : DiagnosticSdkBridge {
     private var remoteLogs = false
@@ -27,6 +26,9 @@ class BuglyDiagnosticSdkBridge(private val context: Context) : DiagnosticSdkBrid
     ) {
         require(configuration.provider == DiagnosticSdkProvider.BUGLY) { "Bugly 适配器需要 BUGLY 配置" }
         if (configuration.performance) throw UnsupportedOperationException("Bugly 性能采集尚未接入")
+        if (!configuration.crashes && !configuration.remoteLogs) return
+        require(configuration.appId.isNotBlank()) { "Bugly 缺少 appId" }
+        require(configuration.appKey.isNotBlank()) { "Bugly 缺少 appKey" }
         if (configuration.remoteLogs) {
             // 日志初始化可能抛错；先完成它，避免失败后留下已安装的崩溃 handler。
             TDLog.initialize(context.applicationContext, remoteLogConfiguration(context))

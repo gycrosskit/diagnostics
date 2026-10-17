@@ -24,8 +24,9 @@ kotlin {
 android {
     namespace = "io.github.gycrosskit.diagnostics.bugly"
     compileSdk = 36
-    defaultConfig { minSdk = 24 }
+    defaultConfig { minSdk = 24; consumerProguardFiles("consumer-rules.pro") }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    sourceSets.getByName("main").resources.srcDir("src/androidMain/resources")
     testOptions.unitTests.isIncludeAndroidResources = true
 }
 

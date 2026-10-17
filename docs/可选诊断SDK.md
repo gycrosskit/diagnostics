@@ -10,16 +10,18 @@
 | iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.13 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.13 |
 | OHOS Release HAR | `DiagnosticsCore.har` + `DiagnosticsBugly.har` | `DiagnosticsCore.har` + `DiagnosticsUmeng.har` |
 
-对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主只选择 `none / bugly / umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
+对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主默认选择 `none`，本期提供 `bugly` / `umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
 
-KMP 公共契约位于 `io.github.gycrosskit.diagnostics.sdk`；Android 具体适配器由所选模块提供。iOS 三个新 Pod 都只包含 Swift，不依赖宿主 `Shared` framework；宿主保留跨语言薄桥。OHOS 三个 HAR 只含 ArkTS，不打入另一份 Kotlin runtime；`diagnostics-kuikly` 持有 Renderer 线程调度、页面销毁/重建与同一进程初始化结果的衔接。
+Android 宿主仅调用 core 的 `installedAndroidDiagnosticSdkBridge(context)`；组件通过标准 SPI 注册且提供混淆保留规则。iOS 不同供应商 Pod 均公开同一 `GYDiagnosticsProvider` 模块与工厂，一次只链接一个实现。OHOS HAR 均公开 `createDiagnosticSdk()`。因此换供应商只改依赖和构建参数，不修改业务日志、授权或生命周期流程。provider 使用开放的安全字符串，无需修改 core 枚举或宿主白名单；新供应商的必填项、SDK 版本和能力差异由组件维护。
+
+KMP 公共契约位于 `io.github.gycrosskit.diagnostics.sdk`；Android 具体适配器由所选模块自动提供，宿主不 import 供应商类型。iOS 三个新 Pod 都只包含 Swift，不依赖宿主 `Shared` framework；宿主保留跨语言薄桥。OHOS 三个 HAR 只含 ArkTS，不打入另一份 Kotlin runtime；`diagnostics-kuikly` 持有 Renderer 线程调度、页面销毁/重建与同一进程初始化结果的衔接。
 
 ## 最小进程接线
 
 ```kotlin
 // configuration 由构建配置提供；none 是默认值。
 processScope.launch {
-    DiagnosticSdkRuntime.configure(configuration, brandId, buildType, versionName, buildNumber, selectedBridgeFactory) {
+    DiagnosticSdkRuntime.configure(configuration, brandId, buildType, versionName, buildNumber, installedBridgeFactory) {
         awaitPrivacyAuthorization()
         if (isPrivacyAuthorized()) stableInstallId() else null
     }

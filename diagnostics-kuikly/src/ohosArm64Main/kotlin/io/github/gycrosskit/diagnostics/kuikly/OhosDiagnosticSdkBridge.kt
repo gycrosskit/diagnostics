@@ -4,7 +4,6 @@ package io.github.gycrosskit.diagnostics.kuikly
 
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkBridge
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkConfiguration
-import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkProvider
 import com.tencent.kuikly.compose.coroutines.internal.KuiklyContextScheduler
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.module.CallbackRef
@@ -98,9 +97,7 @@ class DiagnosticSdkModule : Module() {
     fun configuration(): DiagnosticSdkConfiguration = runCatching {
         val value = JSONObject(syncToNativeMethod("configuration", data = null, callbackFn = null))
         DiagnosticSdkConfiguration(
-            provider = DiagnosticSdkProvider.entries.firstOrNull {
-                it.name.equals(value.optString("provider"), ignoreCase = true)
-            } ?: DiagnosticSdkProvider.NONE,
+            provider = value.optString("provider"),
             appId = value.optString("appId"),
             appKey = value.optString("appKey"),
             channel = value.optString("channel"),
@@ -127,7 +124,7 @@ class DiagnosticSdkModule : Module() {
         try {
             request.callback = toNative(false, "initialize", JSONObject().apply {
                 put("privacyGranted", true)
-                put("provider", configuration.provider.name.lowercase())
+                put("provider", configuration.provider)
                 put("brandId", configuration.brandId)
                 put("environment", configuration.environment)
                 put("deviceId", deviceId)

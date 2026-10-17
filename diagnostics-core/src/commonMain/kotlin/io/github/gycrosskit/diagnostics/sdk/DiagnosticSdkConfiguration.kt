@@ -1,10 +1,15 @@
 package io.github.gycrosskit.diagnostics.sdk
 
-enum class DiagnosticSdkProvider { NONE, BUGLY, UMENG }
+/** 常用配置值；provider 接受安全的开放标识，新增供应商不必修改 core。 */
+object DiagnosticSdkProvider {
+    const val NONE = "none"
+    const val BUGLY = "bugly"
+    const val UMENG = "umeng"
+}
 
 /** 客户端接入参数，不存放控制台 Token、符号上传密钥或远程控制凭据。 */
 data class DiagnosticSdkConfiguration(
-    val provider: DiagnosticSdkProvider = DiagnosticSdkProvider.NONE,
+    val provider: String = DiagnosticSdkProvider.NONE,
     val appId: String = "",
     val appKey: String = "",
     val channel: String = "",
@@ -15,8 +20,7 @@ data class DiagnosticSdkConfiguration(
     val performance: Boolean = false,
 ) {
     fun matches(brandId: String, environment: String): Boolean =
-        provider != DiagnosticSdkProvider.NONE && appKey.isNotBlank() &&
-            (provider != DiagnosticSdkProvider.BUGLY || appId.isNotBlank()) &&
+        provider != DiagnosticSdkProvider.NONE && provider.matches(Regex("[a-z][a-z0-9-]{0,63}")) && appKey.isNotBlank() &&
             this.brandId.isNotBlank() && this.brandId == brandId &&
             this.environment in setOf("debug", "qa", "release") && this.environment == environment &&
             (crashes || remoteLogs || performance)

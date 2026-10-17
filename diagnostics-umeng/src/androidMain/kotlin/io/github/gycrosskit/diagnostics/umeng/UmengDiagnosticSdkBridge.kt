@@ -23,6 +23,7 @@ class UmengDiagnosticSdkBridge(private val context: Context) : DiagnosticSdkBrid
         require(configuration.provider == DiagnosticSdkProvider.UMENG) { "友盟适配器需要 UMENG 配置" }
         if (configuration.performance) throw UnsupportedOperationException("友盟性能采集尚未接入")
         if (!configuration.crashes && !configuration.remoteLogs) return
+        require(configuration.appKey.isNotBlank()) { "友盟缺少 appKey" }
         UMConfigure.setLogEnabled(false)
         MobclickAgent.setCatchUncaughtExceptions(false)
         MobclickAgent.disable()

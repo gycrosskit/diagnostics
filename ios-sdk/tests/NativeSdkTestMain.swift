@@ -1,17 +1,20 @@
 import Foundation
 import GYDiagnosticsSdk
-import UMCommon
-import UMAPM
-@testable import GYDiagnosticsBugly
-import BuglyPro
+@testable import GYDiagnosticsProvider
+#if TEST_BUGLY
+import BuglyProCore
 import TDOS_Diagnose
-import GYDiagnosticsUmeng
+#else
+import UMCommon
+import UMAPMHeadersStub
+#endif
 
 @main
 struct NativeSdkTestMain {
     static func main() throws {
         let mode = CommandLine.arguments[1]
         var handoffs = 0
+        #if TEST_BUGLY
         let suite = "test-" + UUID().uuidString
         let store = DiagnosticVendorLogStore(name: suite)
         defer { store.clearAll() }
@@ -65,7 +68,8 @@ struct NativeSdkTestMain {
 
         }
         if mode.hasPrefix("bugly") {
-            let sdk = GYBuglyDiagnosticSdk()
+            precondition((try? GYDiagnosticSdkProviderFactory.create(provider: "wrong-provider")) == nil)
+            let sdk = try GYDiagnosticSdkProviderFactory.create(provider: "bugly")
             sdk.writeLog(level: "ERROR", tag: "test", message: "before init")
             precondition(TDOSLogger.levels.isEmpty)
             let logs = mode == "bugly-log-failure" || mode == "bugly-log-only" || mode == "bugly-both"
@@ -97,7 +101,9 @@ struct NativeSdkTestMain {
             }
             return
         }
-        let sdk = GYUmengDiagnosticSdk()
+        #else
+        precondition((try? GYDiagnosticSdkProviderFactory.create(provider: "wrong-provider")) == nil)
+        let sdk = try GYDiagnosticSdkProviderFactory.create(provider: "umeng")
         sdk.writeLog(level: "ERROR", tag: "test", message: "before init")
         precondition(UAPMLog.levels.isEmpty && UMConfigure.starts == 0)
         let remote = mode == "umeng-logs" || mode == "umeng-log-only"
@@ -124,5 +130,6 @@ struct NativeSdkTestMain {
         precondition(UAPMLog.levels == (remote ? ["error", "warn", "debug", "info"] : []))
         try sdk.initialize(configuration: config, deviceId: "changed", versionName: "changed", buildNumber: "46") { handoffs += 1 }
         precondition(UMConfigure.starts == 1 && handoffs == (crashes ? 1 : 0))
+        #endif
     }
 }
