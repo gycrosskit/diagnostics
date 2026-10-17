@@ -26,4 +26,6 @@ assert 'gradle.startParameter.buildCacheEnabled = true' in policy
 assert 'withType(org.gradle.api.tasks.testing.AbstractTestTask).configureEach' in policy
 assert 'outputs.upToDateWhen { false }' in policy
 assert "outputs.doNotCacheIf('CI must execute behavior tests') { true }" in policy
+archive = (ROOT / 'scripts/archive-prebuilt.sh').read_text()
+assert '--init-script "$PWD/scripts/ci-repositories.gradle"' in archive
 print('CI cache contract: source-only cache and real test execution policy')

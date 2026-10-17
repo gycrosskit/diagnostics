@@ -6,7 +6,7 @@ export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export GROUP=com.github.gycrosskit.diagnostics
 # 本任务独占的生成仓库；归档不夹带旧版本或SNAPSHOT文件。
 rm -rf build/maven
-bash gradlew --no-daemon --max-workers=1 -Dorg.gradle.parallel=false publishAllPublicationsToStagingRepository
+bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --no-daemon --max-workers=1 -Dorg.gradle.parallel=false publishAllPublicationsToStagingRepository
 python3 jitpack-metadata.py build/maven/com/github/gycrosskit/diagnostics
 publications=diagnostics-bugly,diagnostics-bugly-android,diagnostics-umeng,diagnostics-umeng-android,diagnostics-kuikly,diagnostics-kuikly-ohosarm64,diagnostics-core,diagnostics-core-android,diagnostics-core-jvm,diagnostics-core-iosarm64,diagnostics-core-iossimulatorarm64,diagnostics-core-iosx64,diagnostics-core-ohosarm64,diagnostics-dingtalk,diagnostics-dingtalk-android,diagnostics-dingtalk-jvm,diagnostics-dingtalk-iosarm64,diagnostics-dingtalk-iossimulatorarm64,diagnostics-dingtalk-iosx64,diagnostics-dingtalk-ohosarm64,diagnostics-ktor,diagnostics-ktor-android,diagnostics-ktor-jvm,diagnostics-ktor-iosarm64,diagnostics-ktor-iossimulatorarm64,diagnostics-ktor-iosx64,diagnostics-ktor-ohosarm64,diagnostics-okhttp,diagnostics-okhttp-android,diagnostics-okhttp-jvm
 python3 verification/check-maven.py build/maven com.github.gycrosskit.diagnostics "$VERSION" diagnostics-core,diagnostics-dingtalk,diagnostics-ktor,diagnostics-okhttp,diagnostics-bugly,diagnostics-umeng,diagnostics-kuikly ios_arm64,ios_x64,ios_simulator_arm64,ohos_arm64 "$publications" --max-jvm-major 61
