@@ -4,6 +4,8 @@
 
 **Maven / OHOS HAR rc.16，iOS Git Pods rc.13**：Bugly / 友盟适配独立远程发布，默认 `none` 不引入供应商 SDK。统一配置、隐私门禁回调、初始化状态和有界日志队列位于 core；可选 Kuikly 组件只提供 OHOS transport。依赖选择、能力限制和最小宿主代码见[可选诊断 SDK](docs/可选诊断SDK.md)。[rc.16 源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010793210)和[完整 Maven 归档](https://github.com/gycrosskit/diagnostics/actions/runs/39010794513)已通过，三个 HAR 已真实 Hvigor 构建；iOS 原生沿用 rc.13。正式公开消费以本版发布消费者门禁为准。
 
+当前源码补丁为 Swift 直接消费快照补充 `DiagnosticReadSnapshot.closeWithError()`，通过 NSError 返回关闭失败；Kotlin 继续使用 `use`。该入口尚未包含在已发布 rc.16 中，见[快照接入](docs/机制接入.md#原子只读-reader-快照rc12)。
+
 rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037fa2b31864622706b60`）：`diagnostics-ktor` 增加 `DiagnosticStore.openFileChannel`，由宿主上传 scope 持有，有界读取并提供 EOF/close 屏障；此 API 首次进入 rc.11；发布与远程消费状态以精确 Release 和门禁回执为准。接线和验证范围见[逐文件上传](docs/接入指南.md#ktor-流式桥接rc11)。
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。

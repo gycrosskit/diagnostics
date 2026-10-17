@@ -15,7 +15,7 @@ class DiagnosticReadSnapshotLifecycleTest {
             file to reader { closed += index; throw if (index == 0) first else second }
         })
         val borrowed = snapshot.reader(files.first())
-        assertSame(first, assertFails { snapshot.close() })
+        assertSame(first, assertFails { snapshot.closeWithError() })
         assertEquals(listOf(0, 1), closed)
         assertEquals(listOf(second), first.suppressedExceptions)
         snapshot.close()

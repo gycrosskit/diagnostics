@@ -21,6 +21,10 @@ class DiagnosticReadSnapshot internal constructor(
             ?: throw IllegalArgumentException("文件不属于当前快照")
     }
 
+    /** Swift 关闭入口；AutoCloseable.close 的继承契约不允许增加 @Throws。 */
+    @Throws(Exception::class)
+    fun closeWithError() = close()
+
     /** 幂等释放所有句柄；一项失败仍继续释放其余项，不确认或删除原件。 */
     override fun close() = lock.locked {
         if (closed) return@locked
