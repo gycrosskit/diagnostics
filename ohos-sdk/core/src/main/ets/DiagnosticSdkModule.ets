@@ -2,8 +2,10 @@ import { common } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { KRAny, KuiklyRenderBaseModule, KuiklyRenderCallback } from '@kuikly-open/render';
 import { DiagnosticSdkRuntime } from './DiagnosticSdkRuntime';
+import { DiagnosticSdkConfiguration } from './DiagnosticSdk';
 
 interface DiagnosticSdkRequest {
+  configuration?: DiagnosticSdkConfiguration;
   privacyGranted?: boolean;
   provider?: string;
   brandId?: string;
@@ -42,7 +44,7 @@ export class DiagnosticSdkModule extends KuiklyRenderBaseModule {
         callback?.({ status: 'invalid' }); return null;
       }
       this.runtime.initialize(this.context, input.privacyGranted === true, input.provider ?? '',
-        input.brandId ?? '', input.environment ?? '', input.deviceId ?? '', input.versionName ?? '', input.buildNumber ?? '')
+        input.brandId ?? '', input.environment ?? '', input.deviceId ?? '', input.versionName ?? '', input.buildNumber ?? '', input.configuration)
         .then(() => { if (!this.destroyed) { callback?.({ status: 'ready' }); } })
         .catch(() => { if (!this.destroyed) { callback?.({ status: 'unavailable' }); } });
       return null;

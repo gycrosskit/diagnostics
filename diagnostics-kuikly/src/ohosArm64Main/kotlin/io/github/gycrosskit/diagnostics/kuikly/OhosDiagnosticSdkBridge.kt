@@ -124,6 +124,17 @@ class DiagnosticSdkModule : Module() {
         try {
             request.callback = toNative(false, "initialize", JSONObject().apply {
                 put("privacyGranted", true)
+                put("configuration", JSONObject().apply {
+                    put("provider", configuration.provider)
+                    put("appId", configuration.appId)
+                    put("appKey", configuration.appKey)
+                    put("channel", configuration.channel)
+                    put("crashes", configuration.crashes)
+                    put("remoteLogs", configuration.remoteLogs)
+                    put("performance", configuration.performance)
+                    put("brandId", configuration.brandId)
+                    put("environment", configuration.environment)
+                })
                 put("provider", configuration.provider)
                 put("brandId", configuration.brandId)
                 put("environment", configuration.environment)

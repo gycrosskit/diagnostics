@@ -23,6 +23,14 @@ fun main() = runBlocking {
     check(Transport.calls.isEmpty())
     Renderer.drain()
     check(!initialized.isCompleted)
+    val payload = checkNotNull(Transport.inputs.last().optJSONObject("configuration"))
+    check(payload.optString("provider") == configuration.provider)
+    check(payload.optString("appId") == configuration.appId && payload.optString("appKey") == configuration.appKey)
+    check(payload.optString("channel") == configuration.channel)
+    check(payload.optString("brandId") == configuration.brandId && payload.optString("environment") == configuration.environment)
+    check(payload.optBoolean("crashes", false) == configuration.crashes)
+    check(payload.optBoolean("remoteLogs", false) == configuration.remoteLogs)
+    check(payload.optBoolean("performance", true) == configuration.performance)
     Renderer.onRenderer { Transport.ready(Transport.calls.last().second) }
     initialized.await()
 

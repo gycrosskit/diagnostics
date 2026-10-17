@@ -18,6 +18,7 @@ open class Module {
         check(KuiklyContextScheduler.renderer && injected)
         val ref = callbackFn?.let(::CallbackRef)
         Transport.calls.add(pagerId to ref)
+        Transport.inputs.add(JSONObject(data))
         return ReturnValue(ref)
     }
     fun removeCallback(ref: CallbackRef) { check(KuiklyContextScheduler.renderer); ref.active = false }
@@ -29,5 +30,6 @@ open class Module {
 object Transport {
     val calls = mutableListOf<Pair<String, CallbackRef?>>()
     val logs = mutableListOf<String>()
+    val inputs = mutableListOf<JSONObject>()
     fun ready(ref: CallbackRef?) { if (ref?.active == true) ref.callback(JSONObject().put("status", "ready")) }
 }

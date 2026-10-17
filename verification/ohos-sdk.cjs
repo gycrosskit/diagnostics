@@ -77,8 +77,9 @@ function fixture(provider = 'bugly', overrides = {}, options = {}) {
         diagnosticSdkConfiguration: configuration,
         createDiagnosticSdk: () => {
           calls.push(['factory']);
-          if (provider === 'none') return null;
-          return load(path.join(root, 'ohos-sdk', provider, 'Index.ets')).createDiagnosticSdk();
+          const installed = options.installedProvider ?? provider;
+          if (installed === 'none') return null;
+          return load(path.join(root, 'ohos-sdk', installed, 'Index.ets')).createDiagnosticSdk();
         }
       };
       if (name === '@gycrosskit/diagnostics-core') return load(path.join(root, 'ohos-sdk/core/Index.ets'));
@@ -95,9 +96,12 @@ function fixture(provider = 'bugly', overrides = {}, options = {}) {
   const Runtime = load(path.join(sdkDir, 'DiagnosticSdkRuntime.ets')).DiagnosticSdkRuntime;
   const runtime = new Runtime(configuration, () => {
     calls.push(['factory']);
-    if (provider === 'none') return null;
-    return load(path.join(root, 'ohos-sdk', provider, 'Index.ets')).createDiagnosticSdk();
-  }, 'chonghe', 'qa');
+    if (options.factoryThrows) throw Error('factory failed');
+    const installed = options.installedProvider ?? provider;
+    if (installed === 'none') return null;
+    if (options.initializeThrows) return { initialize() { throw Error('synchronous initialize failed'); } };
+    return load(path.join(root, 'ohos-sdk', installed, 'Index.ets')).createDiagnosticSdk();
+  }, 'chonghe', 'qa', options.installedProvider ?? provider);
   return { configuration, calls, runtime, context, load, release,
     initialize: (consent = true) => runtime.initialize(context, consent, provider,
       configuration.brandId, configuration.environment, 'random-install-id', '2.3.4', '567') };
@@ -111,6 +115,69 @@ async function verify() {
     await assert.rejects(setup.initialize());
     assert.equal(setup.calls.length, 0, 'invalid configuration must not construct SDK');
   }
+  const remote = { provider: 'bugly', appId: 'remote-app', appKey: 'remote-key', channel: 'api',
+    crashes: true, remoteLogs: false, performance: false, brandId: 'chonghe', environment: 'qa' };
+  const dynamic = fixture('none', { appId: '', appKey: '', crashes: false, remoteLogs: false },
+    { installedProvider: 'bugly', delayed: true });
+  const initializeRemote = (configuration, consent = true, deviceId = 'random-install-id') =>
+    dynamic.runtime.initialize(dynamic.context, consent, configuration.provider, configuration.brandId,
+      configuration.environment, deviceId, '2.3.4', '567', configuration);
+  await assert.rejects(initializeRemote(remote, false));
+  for (const invalid of [{ ...remote, provider: 'umeng' }, { ...remote, brandId: 'other' },
+    { ...remote, environment: 'release' }, { ...remote, crashes: 'false' },
+    { ...remote, appKey: '' }, { ...remote, performance: true }]) {
+    await assert.rejects(initializeRemote(invalid));
+  }
+  assert.equal(dynamic.calls.length, 0, 'API configuration must pass privacy, installed provider and scope');
+  const mutable = { ...remote };
+  const pendingRemote = initializeRemote(mutable);
+  mutable.appKey = 'mutated-after-call';
+  await Promise.resolve();
+  assert.equal(dynamic.calls.find(call => call[0] === 'bugly')[2].appKey, 'remote-key', 'freeze a value snapshot');
+  for (const field of ['appId', 'appKey', 'channel']) {
+    await assert.rejects(initializeRemote({ ...remote, [field]: 'changed' }), /reconfiguration_unsupported/);
+  }
+  await assert.rejects(initializeRemote({ ...remote, remoteLogs: true }), /reconfiguration_unsupported/);
+  await assert.rejects(initializeRemote(remote, true, 'another-device'), /reconfiguration_unsupported/);
+  dynamic.release();
+  await pendingRemote;
+  await initializeRemote(Object.fromEntries(Object.entries(remote).reverse()));
+  assert.equal(dynamic.calls.filter(call => call[0] === 'factory').length, 1, 'same configuration reconnects once');
+  await assert.rejects(initializeRemote({ ...remote, appKey: 'changed-after-ready' }), /reconfiguration_unsupported/);
+
+  const delivered = fixture('none', {}, { installedProvider: 'bugly' });
+  const DeliveryModule = delivered.load(path.join(sdkDir, 'DiagnosticSdkModule.ets')).DiagnosticSdkModule;
+  const deliveryModule = new DeliveryModule(delivered.context, delivered.runtime);
+  const deliveryInput = { privacyGranted: true, provider: 'bugly', brandId: 'chonghe', environment: 'qa',
+    deviceId: 'random-install-id', versionName: '2.3.4', buildNumber: '567', configuration: remote };
+  const deliveredStatus = await new Promise(resolve => deliveryModule.call('initialize',
+    JSON.stringify(deliveryInput), value => resolve(value.status)));
+  assert.equal(deliveredStatus, 'ready');
+  assert.equal(delivered.calls.find(call => call[0] === 'bugly')[2].appId, 'remote-app');
+  assert.equal(delivered.calls.filter(call => call[0] === 'diagnose').length, 0, 'remote log switch is honored');
+  for (const configuration of [null, [], 'invalid', { ...remote, remoteLogs: 'false' }]) {
+    const rejected = fixture('none', {}, { installedProvider: 'bugly' });
+    const InvalidModule = rejected.load(path.join(sdkDir, 'DiagnosticSdkModule.ets')).DiagnosticSdkModule;
+    const invalidModule = new InvalidModule(rejected.context, rejected.runtime);
+    const status = await new Promise(resolve => invalidModule.call('initialize',
+      JSON.stringify({ ...deliveryInput, configuration }), value => resolve(value.status)));
+    assert.equal(status, 'unavailable');
+    assert.equal(rejected.calls.length, 0);
+  }
+  for (const options of [{ factoryThrows: true }, { initializeThrows: true }]) {
+    const failed = fixture('bugly', {}, options);
+    await assert.rejects(failed.initialize());
+    await assert.rejects(failed.initialize());
+    assert.equal(failed.calls.filter(call => call[0] === 'factory').length, 1, 'synchronous failures cannot retry');
+  }
+  // 旧构造器/请求不带安装标识和运行载荷，仍使用构建配置。
+  const legacy = fixture();
+  const LegacyRuntime = legacy.load(path.join(sdkDir, 'DiagnosticSdkRuntime.ets')).DiagnosticSdkRuntime;
+  const legacyRuntime = new LegacyRuntime(legacy.configuration,
+    () => legacy.load(path.join(root, 'ohos-sdk/bugly/Index.ets')).createDiagnosticSdk(), 'chonghe', 'qa');
+  await legacyRuntime.initialize(legacy.context, true, 'bugly', 'chonghe', 'qa', 'id', '1', '2');
+  assert.equal(legacy.calls.find(call => call[0] === 'bugly')[2].appId, 'client-app');
+
   const gated = fixture();
   gated.runtime.onAbilityCreated({ name: 'EntryAbility' });
   gated.runtime.onForeground(); gated.runtime.onBackground(); gated.runtime.writeLog('I', 'tag', 'before');
