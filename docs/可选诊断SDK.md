@@ -10,7 +10,7 @@
 | iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.13 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.13 |
 | OHOS Release HAR | `DiagnosticsCore.har` + `DiagnosticsBugly.har` | `DiagnosticsCore.har` + `DiagnosticsUmeng.har` |
 
-iOS Git Pods 与 OHOS HAR 保持已冻结的 rc.13；本次 rc.14 只修 Maven 的 Android 依赖闭包，公共协议未变。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
+iOS Git Pods 与 OHOS HAR 保持已冻结的 rc.13；本次 rc.14 只修 Maven 的 Android 依赖闭包，公共协议未变。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
 
 对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主默认选择 `none`，本期提供 `bugly` / `umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
 

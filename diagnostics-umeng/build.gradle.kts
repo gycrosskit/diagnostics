@@ -11,6 +11,8 @@ kotlin {
             implementation("com.umeng.umsdk:common:10.0.1")
             implementation("com.umeng.umsdk:asms:1.8.7.2")
             implementation("com.umeng.umsdk:apm:2.1.0")
+            // APM 保留 OkHttp/Okio 引用但 POM 未声明；适配组件必须可独立通过 R8。
+            implementation("com.squareup.okhttp3:okhttp:5.2.1")
         }
         androidUnitTest.dependencies {
             implementation(kotlin("test-junit"))
