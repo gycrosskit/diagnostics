@@ -1,6 +1,7 @@
 plugins {
     kotlin("multiplatform") version "2.2.21-1.0.0"
     id("com.android.library") version "8.10.1"
+    id("com.android.application") version "8.10.1" apply false
 }
 kotlin {
     androidTarget(); jvm(); iosArm64(); iosX64 { binaries.framework { baseName = "DiagnosticsConsumer" } }

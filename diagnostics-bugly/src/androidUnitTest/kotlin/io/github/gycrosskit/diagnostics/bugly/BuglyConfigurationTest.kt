@@ -5,6 +5,8 @@ import java.util.ServiceLoader
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkConfiguration
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkProvider
 import com.tencent.bugly.library.BuglyBuilder
+import com.tencent.bugly.sse.BuglyEventSourceListener
+import okhttp3.sse.EventSourceListener
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,6 +20,12 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class BuglyConfigurationTest {
+    @Test
+    fun `vendor optional API references have their real runtime dependency`() {
+        // 类字面量不初始化 SDK；缺少 SSE 父类时 JVM 加载厂商类型即失败。
+        assertTrue(EventSourceListener::class.java.isAssignableFrom(BuglyEventSourceListener::class.java))
+    }
+
     @Test
     fun `locked SDK has no performance monitors before initialization`() {
         val builder = crashOnlyBuglyBuilder(

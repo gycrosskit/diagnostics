@@ -11,6 +11,8 @@ kotlin {
             implementation("com.tencent.bugly:bugly-pro:4.4.8.2") {
                 exclude(group = "org.jetbrains.kotlin", module = "kotlin-android-extensions-runtime")
             }
+            // Bugly 保留 SSE API 引用但 POM 漏声明；关闭 monitor 仍需完整依赖供 R8 解析。
+            implementation("com.squareup.okhttp3:okhttp-sse:5.2.1")
             implementation("com.tencent.tdos-diagnose:diagnose:0.4.11")
             implementation("com.tencent.tdos-diagnose:logger-static:0.4.11")
         }

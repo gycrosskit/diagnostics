@@ -155,6 +155,9 @@ jobs:
       - name: Check optional OHOS HAR archive contract
         if: needs.changes.outputs.source == 'true'
         run: python3 verification/test_ohos_sdk_archive.py
+      - name: Check R8 consumer SPI verifier
+        if: needs.changes.outputs.source == 'true'
+        run: python3 verification-consumer/verify-r8.py --self-test
       - name: Check source cache and test execution policy
         if: needs.changes.outputs.source == 'true'
         run: python3 verification/ci/test_cache_contract.py
@@ -201,6 +204,18 @@ jobs:
       - run: python3 scripts/assert-test-results.py diagnostics-core/build/test-results/jvmTest diagnostics-dingtalk/build/test-results/jvmTest diagnostics-ktor/build/test-results/jvmTest diagnostics-okhttp/build/test-results/jvmTest diagnostics-core/build/test-results/testDebugUnitTest diagnostics-dingtalk/build/test-results/testDebugUnitTest diagnostics-ktor/build/test-results/testDebugUnitTest diagnostics-bugly/build/test-results/testDebugUnitTest diagnostics-umeng/build/test-results/testDebugUnitTest
         timeout-minutes: 35
         if: needs.changes.outputs.source == 'true'
+      - name: Verify Android R8 from source staging publications
+        if: needs.changes.outputs.source == 'true'
+        timeout-minutes: 15
+        run: |
+          publications=()
+          for module in core bugly umeng; do
+            publications+=(":diagnostics-$module:publishKotlinMultiplatformPublicationToStagingRepository" ":diagnostics-$module:publishAndroidReleasePublicationToStagingRepository")
+          done
+          VERSION=source-r8 python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/source-r8-publish.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info "${publications[@]}" --no-daemon --max-workers=1
+          for provider in none bugly umeng; do
+            python3 scripts/ci-run.py --no-progress-seconds 300 --log "ci-diagnostics/source-r8-$provider.log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer :r8-app:minifyReleaseWithR8 :r8-app:verifyR8Release -PdiagnosticsVersion=source-r8 -PdiagnosticsMavenRepo="$PWD/build/maven" -PdiagnosticsProviders=true -PdiagnosticsProvider="$provider" --refresh-dependencies --no-daemon --max-workers=1
+          done
       - name: Verify optional OHOS native and Renderer contracts
         if: needs.changes.outputs.source == 'true'
         run: |
@@ -332,8 +347,10 @@ jobs:
           case "$VERSION" in
             0.1.0|0.2.0-rc.[1-9]|0.2.0-rc.1[0-2]) ;;
             *)
-              for provider in bugly umeng; do
-                python3 scripts/ci-run.py --no-progress-seconds 300 --log "ci-diagnostics/release-android-$provider.log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer testDebugUnitTest compileDebugKotlinAndroid -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" -PdiagnosticsProviders=true -PdiagnosticsProvider="$provider" --refresh-dependencies --no-daemon --max-workers=1
+              for provider in none bugly umeng; do
+                tasks=(:r8-app:minifyReleaseWithR8 :r8-app:verifyR8Release)
+                if [[ "$provider" != none ]]; then tasks+=(testDebugUnitTest compileDebugKotlinAndroid); fi
+                python3 scripts/ci-run.py --no-progress-seconds 300 --log "ci-diagnostics/release-android-$provider.log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer "${tasks[@]}" -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" -PdiagnosticsProviders=true -PdiagnosticsProvider="$provider" --refresh-dependencies --no-daemon --max-workers=1
               done
               ;;
           esac
