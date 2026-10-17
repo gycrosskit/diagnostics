@@ -79,4 +79,3 @@ export class DiagnosticSdkRuntime {
     catch (_) { hilog.warn(0x30, 'DiagnosticSdk', '%{public}s', 'SDK flush failed; local log retained'); }
   }
 }
-

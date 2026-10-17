@@ -31,4 +31,3 @@ def artifact(group, name, version, suffix='.jar', resolve_dependencies=False):
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
     return target
-
