@@ -1,0 +1,8 @@
+{
+  "app": {
+    "bundleName": "io.github.gycrosskit.diagnostics",
+    "vendor": "gycrosskit",
+    "versionCode": 1,
+    "versionName": "0.2.0-rc.16"
+  }
+}

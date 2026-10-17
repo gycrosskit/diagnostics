@@ -188,6 +188,18 @@ class DiagnosticStore @Throws(Exception::class) constructor(rootDirectory: Strin
             legacySources.flatMap { DiagnosticFiles.list(it.directory, it.prefixes) }
     }
 
+    /**
+     * 同一锁内枚举并打开全部只读 reader；解锁后读取，不阻塞后续日志/报告落盘。
+     * 不冻结或确认批次；legacy 目录必须已停止写入，本实例锁不保护外部 owner。
+     */
+    @Throws(Exception::class)
+    fun openCurrentSnapshot(): DiagnosticReadSnapshot = lock.locked {
+        checkOpen()
+        val files = (files(root) + files(pending)).map { DiagnosticSnapshotFile(it.toString(), it.name, size(it)) } +
+            legacySources.flatMap { DiagnosticFiles.list(it.directory, it.prefixes) }
+        DiagnosticReadSnapshot.open(files.distinctBy { it.path })
+    }
+
     /** 只打开 currentFiles 中仍存在且未缩短的文件快照；调用方负责关闭 reader。 */
     @Throws(Exception::class)
     fun openSnapshot(file: DiagnosticSnapshotFile): DiagnosticFileReader = lock.locked {

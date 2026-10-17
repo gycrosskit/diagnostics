@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "DiagnosticsBugly",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ]
+  }
+}

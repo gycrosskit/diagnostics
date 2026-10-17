@@ -16,16 +16,36 @@ data class DiagnosticZipFile(val archivePath: String, val file: DiagnosticSnapsh
  * 输入 reader 在所有分支释放，返回成功归档路径；宿主负责分享权限和最终归档删除。
  */
 fun exportDiagnosticZip(destination: String, files: List<DiagnosticZipFile>, textEntries: Map<String, String> = emptyMap()): String {
-    val paths = files.map { it.archivePath } + textEntries.keys
-    require(paths.distinct().size == paths.size)
-    require(paths.all { it.isNotBlank() && !it.startsWith('/') && it.split('/').none { segment -> segment == ".." } })
-    val target = File(DiagnosticFiles.checkedPath(destination).toString())
-    require(!target.exists() && files.none { File(it.file.path).canonicalFile == target.canonicalFile })
-    val temporary = File("$destination.tmp")
-    require(!temporary.exists()) { "Temporary destination already exists" }
-    val inputs = mutableListOf<Pair<DiagnosticZipFile, DiagnosticFileReader>>()
+    val target = validateZipDestination(destination, files, textEntries)
+    return DiagnosticReadSnapshot.open(files.map { it.file }).use { snapshot ->
+        writeDiagnosticZip(target, files.zip(snapshot.entries).map { (file, opened) -> file to opened.second }, textEntries)
+    }
+}
+
+/** 借用原子打开的快照，宿主只决定归档名；不重新打开源路径，不关闭 snapshot 或 reader。 */
+fun exportDiagnosticZip(
+    destination: String,
+    snapshots: List<DiagnosticReadSnapshot>,
+    files: List<DiagnosticZipFile>,
+    textEntries: Map<String, String> = emptyMap(),
+): String {
+    val target = validateZipDestination(destination, files, textEntries, snapshots.flatMap { it.files })
+    require(files.map { it.file }.distinct().size == files.size) { "快照文件只能导出一次" }
+    val inputs = files.map { entry ->
+        val snapshot = snapshots.firstOrNull { entry.file in it.files }
+            ?: throw IllegalArgumentException("文件不属于输入快照")
+        entry to snapshot.reader(entry.file)
+    }
+    return writeDiagnosticZip(target, inputs, textEntries)
+}
+
+private fun writeDiagnosticZip(
+    target: File,
+    inputs: List<Pair<DiagnosticZipFile, DiagnosticFileReader>>,
+    textEntries: Map<String, String>,
+): String {
+    val temporary = File("${target.absolutePath}.tmp")
     try {
-        files.forEach { inputs += it to DiagnosticFiles.openSnapshot(it.file) }
         ZipOutputStream(temporary.outputStream().buffered()).use { output ->
             for ((path, text) in textEntries) { output.putNextEntry(ZipEntry(path)); output.write(text.toByteArray()); output.closeEntry() }
             for ((entry, input) in inputs) {
@@ -37,5 +57,21 @@ fun exportDiagnosticZip(destination: String, files: List<DiagnosticZipFile>, tex
         check(temporary.renameTo(target))
         return target.absolutePath
     } catch (failure: Throwable) { temporary.delete(); throw failure }
-    finally { inputs.forEach { it.second.close() } }
+}
+
+private fun validateZipDestination(
+    destination: String,
+    files: List<DiagnosticZipFile>,
+    textEntries: Map<String, String>,
+    sources: List<DiagnosticSnapshotFile> = files.map { it.file },
+): File {
+    val paths = files.map { it.archivePath } + textEntries.keys
+    require(paths.distinct().size == paths.size)
+    require(paths.all { it.isNotBlank() && !it.startsWith('/') && it.split('/').none { segment -> segment == ".." } })
+    val target = File(DiagnosticFiles.checkedPath(destination).toString())
+    val temporary = File("$destination.tmp")
+    val outputs = setOf(target.canonicalFile, temporary.canonicalFile)
+    require(!target.exists() && sources.none { File(it.path).canonicalFile in outputs })
+    require(!temporary.exists()) { "Temporary destination already exists" }
+    return target
 }

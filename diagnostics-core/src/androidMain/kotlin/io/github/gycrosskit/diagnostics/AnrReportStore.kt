@@ -135,6 +135,13 @@ class AnrReportStore(
     @Synchronized
     fun pendingReportFiles(): List<File> = reportFiles().sortedBy(File::getName)
 
+    /** 同一监视器内枚举并打开报告，之后保留窗口淘汰不影响已有 reader；调用方负责关闭。 */
+    @Synchronized
+    @Throws(Exception::class)
+    fun openCurrentSnapshot(): DiagnosticReadSnapshot = DiagnosticReadSnapshot.open(
+        reportFiles().sortedBy(File::getName).map { DiagnosticFiles.snapshot(it.absolutePath) },
+    )
+
     /** 仅读取报告头，用于 ANR 列表和概览计数。 */
     @Synchronized
     fun summaries(): List<AnrReportSummary> = reportFiles()

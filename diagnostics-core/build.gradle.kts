@@ -13,9 +13,13 @@ kotlin {
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2-1.0.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.1-1.0.0")
         }
-        commonTest.dependencies { implementation(kotlin("test")) }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2-1.0.0")
+        }
         val jvmSharedMain by creating { dependsOn(commonMain.get()) }
         androidMain.get().dependsOn(jvmSharedMain)
+        androidMain.dependencies { implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2-1.0.0") }
         jvmMain.get().dependsOn(jvmSharedMain)
         nativeMain.get().dependencies { }
     }
@@ -24,6 +28,6 @@ android {
     namespace = "io.github.gycrosskit.diagnostics"
     compileSdk = 36
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    defaultConfig { minSdk = 24 }
+    defaultConfig { minSdk = 24; consumerProguardFiles("consumer-rules.pro") }
 }
 publishing { repositories.maven { name = "staging"; url = uri(rootProject.layout.buildDirectory.dir("maven")) } }

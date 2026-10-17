@@ -1,0 +1,11 @@
+{
+  "name": "@gycrosskit/diagnostics-core",
+  "version": "0.2.0-rc.16",
+  "description": "HarmonyOS 可选诊断 core",
+  "main": "Index.ets",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/gycrosskit/diagnostics",
+  "dependencies": {
+    "@kuikly-open/render": "2.29.1"
+  }
+}

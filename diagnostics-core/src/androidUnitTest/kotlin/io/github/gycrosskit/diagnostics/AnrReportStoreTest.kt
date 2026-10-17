@@ -79,6 +79,27 @@ class AnrReportStoreTest {
     }
 
     @Test
+    fun `opened ANR snapshot survives retention deletion and remains caller owned after export`() {
+        val directory = temporaryFolder.newFolder()
+        val store = AnrReportStore(directory)
+        repeat(10) { index -> requireNotNull(store.record(AnrReport(AnrReportSource.WATCHDOG, index.toLong()))) }
+        val captured = store.pendingReportFiles().associate { it.name to it.readText() }
+        store.openCurrentSnapshot().use { snapshot ->
+            requireNotNull(store.record(AnrReport(AnrReportSource.WATCHDOG, 10L)))
+            assertFalse(java.io.File(directory, "anr_watchdog_0.txt").exists())
+            val output = java.io.File(temporaryFolder.root, "anr.zip")
+            exportDiagnosticZip(output.path, listOf(snapshot), snapshot.files.map { DiagnosticZipFile(it.name, it) })
+            java.util.zip.ZipFile(output).use { archive ->
+                captured.forEach { (name, text) ->
+                    assertEquals(text, archive.getInputStream(archive.getEntry(name)).bufferedReader().use { it.readText() })
+                }
+            }
+            assertTrue(snapshot.reader(snapshot.files.first()).read().isEmpty())
+            assertEquals(10, store.pendingReportFiles().size)
+        }
+    }
+
+    @Test
     fun `oversized report is streamed within the file limit`() {
         val directory = temporaryFolder.newFolder()
         val store = AnrReportStore(directory)

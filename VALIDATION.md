@@ -141,3 +141,17 @@ Release 所有资产重新下载，SHA/大小/清单与候选匹配；JitPack �
 干净消费工程使用固定远程版本，没有本地 Maven、includeBuild 或其他组件源码替代；通过现有入口的 Android/iOS / OHOS / JVM 编译和相应最终链接。 JitPack 顶层 component.url 改写地址返回404，实际变体/available-at与真实消费者正常；未创建伪坐标掩盖此字段。
 
 完整回归范围、精简原则、注释契约与仍需设备/业务验收的边界见 [14 个功能组件测试与 API 审查](https://github.com/gycrosskit/.github/blob/main/docs/组件测试与API审查.md)。源码测试与远程消费不代替真机和厂商业务验收。
+
+## 0.2.0-rc.12 原子快照与 Native 异常报告
+
+2026-10-17：源码提交 `36a1560a24b03142433419ab215594f2a5c99db7` 的
+[源码回归](https://github.com/gycrosskit/diagnostics/actions/runs/38935584029)与
+[完整 Maven 归档](https://github.com/gycrosskit/diagnostics/actions/runs/38935591606)均通过。
+归档重新下载后核对 64 个来源文件、24 个 Maven publication、全部声明文件与 sidecar 哈希、POM 许可证和 Java 17 字节码上限；
+SHA-256 为 `9dbcf1e33141a1a459482d8c269ab898292ccd68da5ccd7a1021353c09de3fed`。
+
+本轮覆盖锁内打开、锁外读取的只读快照，以及轮转、确认、目录移除后仍读取原字节的行为；
+iOS/OHOS 的异常报告统一 UTF-8 总量、cause/suppressed、循环、深度与帧数限制。
+独立消费者已以同版本地 Maven 候选通过 JVM/Android 测试、iOS simulator 测试和 OHOS 编译；
+正式远程消费由发布后的精确版本门禁另验，本地候选不作为公开渠道通过证据。
+Swift Package / Git Pod 仍固定 `0.2.0-rc.1`；未执行真机系统事件投递、真实通知或上传。

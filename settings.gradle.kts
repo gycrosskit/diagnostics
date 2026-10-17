@@ -4,7 +4,7 @@ pluginManagement {
     repositories {
         maven { url = uri("https://maven.eazytec-cloud.com/nexus/repository/maven-public/"); content { includeVersionByRegex(".*", ".*", ".*-(1\\.0\\.0|1\\.1\\.0-04)") } }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/public"); content { excludeGroupByRegex("com\\.tencent.*") } }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -17,13 +17,16 @@ dependencyResolutionManagement {
     repositories {
         maven { url = uri("https://maven.eazytec-cloud.com/nexus/repository/maven-public/"); content { includeVersionByRegex(".*", ".*", ".*-(1\\.0\\.0|1\\.1\\.0-04)") } }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/public"); content { excludeGroupByRegex("com\\.tencent.*") } }
         google()
         mavenCentral()
         maven { url = uri("https://mirrors.tencent.com/nexus/repository/maven-public/") }
         maven { url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/") }
+        maven { url = uri("https://mirrors.tencent.com/repository/maven/thirdparty/") }
     }
 }
 
 rootProject.name = "diagnostics"
 include(":diagnostics-core", ":diagnostics-dingtalk", ":diagnostics-ktor", ":diagnostics-okhttp")
+
+include(":diagnostics-bugly", ":diagnostics-umeng", ":diagnostics-kuikly")

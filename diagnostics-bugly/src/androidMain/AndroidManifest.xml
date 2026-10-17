@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <!-- 启动性能未接入，移除 SDK 在隐私授权前执行的自动 Provider。 -->
+        <provider android:name="com.tencent.rmonitor.launch.AppLaunchMonitorInstaller" tools:node="remove" />
+    </application>
+</manifest>

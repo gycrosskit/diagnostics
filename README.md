@@ -1,14 +1,18 @@
 # GY CrossKit Diagnostics
 
-本库提供 Core 与可选网络/通知基础设施，CMP/Kuikly 是消费方；没有独立 UI 模块。 五种消费入口、公开功能组、平台限制及 **0.2.0-rc.11**的验证范围见 [功能与平台差异](docs/功能与平台差异.md)。发布状态以对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.11) 为准；设备验收边界见功能页。
+本库提供 Core、可选网络/通知及 Bugly / 友盟适配，CMP/Kuikly 是消费方。五种消费入口、公开功能组、平台限制及 **0.2.0-rc.12** 的验证范围见 [功能与平台差异](docs/功能与平台差异.md)。当前渠道版本见 [rc.16 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.16)；设备验收边界见功能页。
+
+**Maven / OHOS HAR rc.16，iOS Git Pods rc.13**：Bugly / 友盟适配独立远程发布，默认 `none` 不引入供应商 SDK。统一配置、隐私门禁回调、初始化状态和有界日志队列位于 core；可选 Kuikly 组件只提供 OHOS transport。依赖选择、能力限制和最小宿主代码见[可选诊断 SDK](docs/可选诊断SDK.md)。[rc.16 源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010793210)和[完整 Maven 归档](https://github.com/gycrosskit/diagnostics/actions/runs/39010794513)已通过，三个 HAR 已真实 Hvigor 构建；iOS 原生沿用 rc.13。正式公开消费以本版发布消费者门禁为准。
+
+当前源码补丁为 Swift 直接消费快照补充 `DiagnosticReadSnapshot.closeWithError()`，通过 NSError 返回关闭失败；Kotlin 继续使用 `use`。该入口尚未包含在已发布 rc.16 中，见[快照接入](docs/机制接入.md#原子只读-reader-快照rc12)。
 
 rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037fa2b31864622706b60`）：`diagnostics-ktor` 增加 `DiagnosticStore.openFileChannel`，由宿主上传 scope 持有，有界读取并提供 EOF/close 屏障；此 API 首次进入 rc.11；发布与远程消费状态以精确 Release 和门禁回执为准。接线和验证范围见[逐文件上传](docs/接入指南.md#ktor-流式桥接rc11)。
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
 
-Maven 版本 **0.2.0-rc.11**：在 `diagnostics-core` / `diagnostics-dingtalk` 之外增加可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md)，统一关联、耗时、有界正文与脱敏；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。Swift Package / Git Pod 仍配套 **0.2.0-rc.1**；本库没有 HAR。
+Maven 版本 **0.2.0-rc.12**：增加原子只读快照、轮转安全的 ZIP/文本导出，以及 iOS/OHOS 有界 Throwable 格式化；用法见 [机制接入](docs/机制接入.md)。可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和通知模块保持同版；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。rc.12 原有 Swift Package / Git Pod 配套 **0.2.0-rc.1**。rc.13 新增原生适配 Pod 和纯 ArkTS HAR；Maven rc.14/rc.15 补齐 Android 供应商依赖和 Main dispatcher；详见[可选诊断 SDK](docs/可选诊断SDK.md)。
 
-正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.11) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
+正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.12) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
 
 ## 支持范围
 
@@ -16,10 +20,10 @@ Maven 版本 **0.2.0-rc.11**：在 `diagnostics-core` / `diagnostics-dingtalk` �
 | --- | --- | --- |
 | Android API 24+ | `androidDiagnosticStore(Context)`，noBackupFilesDir | `AndroidCrashRecorder`：JVM 未捕获异常；`AndroidAnrMonitor`：系统 ANR 历史/主线程看门狗；`AndroidNativeCrashCollector`：API30+ native 退出历史，非 signal 捕获 |
 | iOS | `iosDiagnosticStore()`，Library 并排除备份 | `GYDiagnosticsNative` ：MetricKit metrics/diagnostics JSON 与 NSException；iOS 14+，系统延迟投递 |
-| OpenHarmony | `DiagnosticStore`，宿主传 filesDir 下专属目录 | `OhosCrashRecorder`：HiAppEvent API 12+，延迟 APP_CRASH / APP_FREEZE；分别分类 CRASH / HANG；无 ArkTS 桥 |
+| OpenHarmony | `DiagnosticStore`，宿主传 filesDir 下专属目录 | `OhosCrashRecorder`：HiAppEvent API 12+，延迟 APP_CRASH / APP_FREEZE；分别分类 CRASH / HANG；存储无 ArkTS 桥，可选 SDK 桥见上文 |
 | JVM | `DiagnosticStore` | 文件存储，无系统采集器 |
 
-Kotlin **2.2.21-1.0.0** OHOS 工具链；依赖包含 OHOS 变体的 `kotlinx-io-core:0.9.0-1.0.0`。不依赖 Compose、Kuikly 或业务模块。
+Kotlin **2.2.21-1.0.0** OHOS 工具链；依赖包含 OHOS 变体的 `kotlinx-io-core:0.9.0-1.0.0`。核心存储不依赖 Compose、Kuikly 或业务模块；可选 `diagnostics-kuikly` 单独依赖 Kuikly Renderer。
 
 ## 架构与调用流程
 
@@ -107,7 +111,7 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.11")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.12")
 ```
 
 系统采集独立启用。iOS 原生包用根 `Package.swift` 的 `GYDiagnosticsNative` product，或 `pod "GYDiagnosticsNative", :path => "本库路径"`。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
