@@ -195,6 +195,32 @@ jobs:
       - run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
         timeout-minutes: 35
         if: needs.changes.outputs.source == 'true'
+      - name: Diagnose fork Maven routes
+        if: needs.changes.outputs.source == 'true'
+        timeout-minutes: 3
+        run: |
+          python3 - <<'PROBE'
+          import concurrent.futures, hashlib, ipaddress, json, os, socket, subprocess, tempfile
+          from pathlib import Path
+          host = 'maven.eazytec-cloud.com'
+          addresses = sorted({entry[4][0] for entry in socket.getaddrinfo(host, 443, socket.AF_INET)} | {os.environ['CI_FORK_HOST_FALLBACK_IP']})
+          paths = {
+              'marker': 'org/jetbrains/kotlin/multiplatform/org.jetbrains.kotlin.multiplatform.gradle.plugin/2.2.21-1.0.0/org.jetbrains.kotlin.multiplatform.gradle.plugin-2.2.21-1.0.0.pom',
+              'metadata': 'org/jetbrains/kotlinx/kotlinx-io-core-iosx64/0.9.0-1.0.0/kotlinx-io-core-iosx64-0.9.0-1.0.0-metadata.jar',
+          }
+          def probe(item):
+              address, name, path = item
+              ip = ipaddress.IPv4Address(address)
+              assert ip.is_global and not ip.is_multicast
+              with tempfile.TemporaryDirectory() as directory:
+                  output = Path(directory) / 'artifact'
+                  result = subprocess.run(['curl', '--disable', '--fail', '--silent', '--show-error', '--proto', '=https', '--ipv4', '--noproxy', host, '--resolve', f'{host}:443:{address}', '--connect-timeout', '8', '--max-time', '20', '--output', str(output), '--write-out', '%{http_code} %{remote_ip} %{time_connect} %{time_total}', f'https://{host}/nexus/repository/maven-public/{path}'], text=True, capture_output=True)
+                  return {'address': address, 'artifact': name, 'exit': result.returncode, 'connection': result.stdout, 'error': result.stderr.strip(), 'sha256': hashlib.sha256(output.read_bytes()).hexdigest() if output.exists() else None}
+          for attempt in range(1, 4):
+              with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+                  for result in pool.map(probe, [(address, name, path) for address in addresses for name, path in paths.items()]):
+                      print(json.dumps({'attempt': attempt, **result}), flush=True)
+          PROBE
       - run: bash scripts/ci-pin-fork-host.sh
         timeout-minutes: 3
         if: needs.changes.outputs.source == 'true'
