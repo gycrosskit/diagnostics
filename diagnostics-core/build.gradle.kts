@@ -19,6 +19,7 @@ kotlin {
         }
         val jvmSharedMain by creating { dependsOn(commonMain.get()) }
         androidMain.get().dependsOn(jvmSharedMain)
+        androidMain.dependencies { implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2-1.0.0") }
         jvmMain.get().dependsOn(jvmSharedMain)
         nativeMain.get().dependencies { }
     }

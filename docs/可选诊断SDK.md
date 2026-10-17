@@ -1,16 +1,16 @@
 # 可选诊断 SDK
 
-`0.2.0-rc.14` Maven 候选将 Bugly、友盟实现迁到独立远程组件。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
+`0.2.0-rc.15` Maven 候选将 Bugly、友盟实现迁到独立远程组件。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
 
 ## 依赖与职责
 
 | 平台 | Bugly 入口 | 友盟入口 |
 | --- | --- | --- |
-| Android Maven | `diagnostics-bugly` rc.14 | `diagnostics-umeng` rc.14 |
+| Android Maven | `diagnostics-bugly` rc.15 | `diagnostics-umeng` rc.15 |
 | iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.13 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.13 |
 | OHOS Release HAR | `DiagnosticsCore.har` + `DiagnosticsBugly.har` | `DiagnosticsCore.har` + `DiagnosticsUmeng.har` |
 
-iOS Git Pods 与 OHOS HAR 保持已冻结的 rc.13；本次 rc.14 只修 Maven 的 Android 依赖闭包，公共协议未变。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
+iOS Git Pods 与 OHOS HAR 保持已冻结的 rc.13；rc.14/rc.15 只修 Maven 的 Android 依赖闭包，公共协议未变。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
 
 对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主默认选择 `none`，本期提供 `bugly` / `umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
 
@@ -29,6 +29,7 @@ KMP 公共契约位于 `io.github.gycrosskit.diagnostics.sdk`；Android 具体�
 配置中的 `brandId` / `environment` 另表示凭据适用范围，须与真实上下文匹配，不应直接复制当前构建值来绕过校验。
 `environment` 为 `debug` / `qa` / `release`；后端 test/production、推广渠道、厂商服务区域分别处理。
 这些通用字段不保证厂商报表自动按品牌/环境分组：iOS native 适配不设置品牌/环境标签，OHOS 友盟没有覆写安装标识、版本/build 的公开入口。
+core 的 Android runtime 显式提供同版 `kotlinx-coroutines-android`，确保极简宿主也能使用初始化入口的 Main dispatcher；不依赖宿主恰好引入 UI 协程。
 需要严格隔离时应使用对应项目凭据；不复用 channel 充当品牌或环境，也不把统一接口说成各 SDK 元数据能力完全相同。
 客户端配置不包含控制台 Token、符号上传密钥或服务端 API 凭据；新供应商所需参数由其适配组件维护。
 

@@ -9,7 +9,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.assertFailsWith
 import org.robolectric.RuntimeEnvironment
 import org.junit.runner.RunWith
@@ -19,6 +21,11 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class UmengConfigurationTest {
+    @Test
+    fun `core provides Android Main dispatcher before vendor initialization`() {
+        assertFalse(Dispatchers.Main.immediate.isDispatchNeeded(EmptyCoroutineContext))
+    }
+
     @Test
     fun `remote log chunks retain emoji on the SDK length boundary`() {
         val message = "a".repeat(1023) + "😀" + "b".repeat(1023) + "😀"
