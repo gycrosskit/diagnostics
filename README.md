@@ -1,6 +1,6 @@
 # GY CrossKit Diagnostics
 
-本库提供 Core、可选网络/通知及 Bugly / 友盟适配，CMP/Kuikly 是消费方。五种消费入口、公开功能组、平台限制及 **0.2.0-rc.12** 的验证范围见 [功能与平台差异](docs/功能与平台差异.md)。当前渠道版本见 [rc.16 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.16)；设备验收边界见功能页。
+本库提供 Core、可选网络/通知及 Bugly / 友盟适配，原生宿主和 Kuikly 复用公开能力。三端消费入口、公开功能组、平台限制及 **0.2.0-rc.12** 的验证范围见 [功能与平台差异](docs/功能与平台差异.md)。当前渠道版本见 [rc.16 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.16)；设备验收边界见功能页。
 
 **Maven / OHOS HAR rc.16，iOS Git Pods rc.13**：Bugly / 友盟适配独立远程发布，默认 `none` 不引入供应商 SDK。统一配置、隐私门禁回调、初始化状态和有界日志队列位于 core；可选 Kuikly 组件只提供 OHOS transport。依赖选择、能力限制和最小宿主代码见[可选诊断 SDK](docs/可选诊断SDK.md)。[rc.16 源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010793210)和[完整 Maven 归档](https://github.com/gycrosskit/diagnostics/actions/runs/39010794513)已通过，三个 HAR 已真实 Hvigor 构建；iOS 原生沿用 rc.13。正式公开消费以本版发布消费者门禁为准。
 
