@@ -9,5 +9,9 @@
     "@gycrosskit/diagnostics-core": "0.2.0-rc.16",
     "@umeng/common": "1.2.0",
     "@umeng/apm": "1.5.0"
+  },
+  "author": {
+    "name": "gycrosskit",
+    "url": "https://github.com/gycrosskit/diagnostics"
   }
 }
