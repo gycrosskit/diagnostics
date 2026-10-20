@@ -108,14 +108,21 @@ struct NativeSdkTestMain {
         precondition(UAPMLog.levels.isEmpty && UMConfigure.starts == 0)
         let remote = mode == "umeng-logs" || mode == "umeng-log-only"
         let crashes = mode != "umeng-log-only" && mode != "umeng-disabled"
+        let legacy = mode == "umeng-legacy"
+        let brand = legacy ? "" : (mode == "umeng-other-brand" ? "hehekang" : "chonghe")
+        let environment = legacy ? "" : (mode == "umeng-other-brand" ? "release" : "qa")
+        let defaults = GYDiagnosticSdkConfiguration()
+        precondition(defaults.brandId.isEmpty && defaults.environment.isEmpty)
         let config = GYDiagnosticSdkConfiguration(appKey: mode == "umeng-invalid" ? "" : "test-key", channel: "test-channel",
-                                                 crashes: crashes, performance: mode == "umeng-performance", remoteLogs: remote)
+                                                 crashes: crashes, performance: mode == "umeng-performance", remoteLogs: remote,
+                                                 brandId: brand, environment: environment)
         do {
             try sdk.initialize(configuration: config, deviceId: "installation-test", versionName: "1.2.3", buildNumber: "45") { handoffs += 1 }
             precondition(mode != "umeng-performance" && mode != "umeng-invalid" && mode != "umeng-disabled")
         } catch {
             precondition(mode == "umeng-performance" || mode == "umeng-invalid" || mode == "umeng-disabled")
             precondition(handoffs == 0 && UMConfigure.starts == 0 && UMCrashConfigure.config == nil)
+            precondition(UMCrashConfigure.customData == nil && UMCrashConfigure.updates == 0)
             return
         }
         precondition(handoffs == (crashes ? 1 : 0) && UMConfigure.starts == 1)
@@ -126,10 +133,13 @@ struct NativeSdkTestMain {
         precondition(flags.logCollectUserId == "installation-test")
         precondition(UMCrashConfigure.version == "1.2.3" && UMCrashConfigure.build == "45")
         precondition(!UMConfigure.analyticsEnabled && !UMConfigure.logEnabled)
+        precondition(UMConfigure.channel == "test-channel")
+        precondition(UMCrashConfigure.customData?.values == [.key1: brand, .key2: environment])
+        precondition(UMCrashConfigure.updates == 1)
         for level in ["ERROR", "WARN", "DEBUG", "INFO"] { sdk.writeLog(level: level, tag: "test", message: "safe") }
         precondition(UAPMLog.levels == (remote ? ["error", "warn", "debug", "info"] : []))
         try sdk.initialize(configuration: config, deviceId: "changed", versionName: "changed", buildNumber: "46") { handoffs += 1 }
-        precondition(UMConfigure.starts == 1 && handoffs == (crashes ? 1 : 0))
+        precondition(UMConfigure.starts == 1 && handoffs == (crashes ? 1 : 0) && UMCrashConfigure.updates == 1)
         #endif
     }
 }

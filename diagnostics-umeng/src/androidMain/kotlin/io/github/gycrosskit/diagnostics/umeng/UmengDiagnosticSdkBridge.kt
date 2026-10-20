@@ -9,6 +9,7 @@ import com.umeng.commonsdk.UMConfigure
 import com.umeng.analytics.MobclickAgent
 import com.umeng.logsdk.ULogManager
 import com.umeng.umcrash.UMCrash
+import com.umeng.umcrash.custommapping.UAPMCustomMapping
 
 /** 友盟日志回捞使用厂商有界缓存，宿主私有日志的存储和导出仍由原组件负责。 */
 class UmengDiagnosticSdkBridge(private val context: Context) : DiagnosticSdkBridge {
@@ -37,6 +38,9 @@ class UmengDiagnosticSdkBridge(private val context: Context) : DiagnosticSdkBrid
         UMConfigure.preInit(context.applicationContext, configuration.appKey, configuration.channel)
         UMConfigure.init(context.applicationContext, configuration.appKey, configuration.channel,
             UMConfigure.DEVICE_TYPE_PHONE, null)
+        // 可检索维度须在 SDK 初始化后设置；channel 继续表示分发渠道。
+        UAPMCustomMapping.putStringParam(UAPMCustomMapping.STRING_PARAM_1, configuration.brandId)
+        UAPMCustomMapping.putStringParam(UAPMCustomMapping.STRING_PARAM_2, configuration.environment)
         remoteLogs = configuration.remoteLogs
     }
 

@@ -2,11 +2,14 @@ import Foundation
 
 public struct GYDiagnosticSdkConfiguration {
     public let appId: String, appKey: String, channel: String
+    public let brandId: String, environment: String
     public let crashes: Bool, performance: Bool, remoteLogs: Bool
 
     public init(appId: String = "", appKey: String = "", channel: String = "",
-                crashes: Bool = true, performance: Bool = false, remoteLogs: Bool = true) {
+                crashes: Bool = true, performance: Bool = false, remoteLogs: Bool = true,
+                brandId: String = "", environment: String = "") {
         self.appId = appId; self.appKey = appKey; self.channel = channel
+        self.brandId = brandId; self.environment = environment
         self.crashes = crashes; self.performance = performance; self.remoteLogs = remoteLogs
     }
 }

@@ -35,6 +35,11 @@ public final class GYUmengDiagnosticSdk: GYDiagnosticSdkAdapter {
         initialized = true
         remoteLogs = configuration.remoteLogs
         UMConfigure.initWithAppkey(configuration.appKey, channel: configuration.channel)
+        // 可检索维度须在 SDK 初始化后设置；channel 继续表示分发渠道。
+        let data = UMAPMCustomData()
+        data.putStringParam(configuration.brandId, forKey: .key1)
+        data.putStringParam(configuration.environment, forKey: .key2)
+        UMCrashConfigure.update(data)
     }
 
     public func writeLog(level: String, tag: String, message: String) {
