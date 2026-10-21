@@ -132,7 +132,7 @@ struct NativeSdkTestMain {
         precondition(!flags.javaScriptBridgeEnable && !flags.pageMonitorEnable)
         precondition(flags.logCollectUserId == "installation-test")
         precondition(UMCrashConfigure.version == "1.2.3" && UMCrashConfigure.build == "45")
-        precondition(!UMConfigure.analyticsEnabled && !UMConfigure.logEnabled)
+        precondition(!UMConfigure.analyticsEnabled && !UMConfigure.logEnabled && !UMConfigure.asaEnabled)
         precondition(UMConfigure.channel == "test-channel")
         precondition(UMCrashConfigure.customData?.values == [.key1: brand, .key2: environment])
         precondition(UMCrashConfigure.updates == 1)

@@ -45,6 +45,8 @@ rc.16 的 OHOS 配置补丁扩展现有 `initialize` 请求：Kotlin 透传完�
 
 ## 友盟品牌与环境维度（rc.17）
 
+当前未发布候选的隐私补丁：Android Common `10.0.1` 在现有宿主授权准入之后先调用 `preInit(context, appKey, channel)` 准备上下文，再调用 `submitPolicyGrantResult(context, true)` 和 `init`。授权调用会创建 sender，提前执行会令其首次初始化拿不到上下文，注册报文留在待发队列；这不替代宿主隐私同意。iOS Common `7.6.8` 在初始化前显式关闭默认开启的 ASA token 采集，同时保持统计关闭。rc.17 不含这两处补丁，不能把本地替身测试视为已发布版本或真实收数验收。
+
 启用前，宿主隐私政策及第三方 SDK 清单应披露友盟 U-APM 的实际用途、数据类型与供应商隐私政策；仅传入合成验收日志，品牌/环境字段不应包含账号或其他用户信息。厂商接口调用与开关检查不等于合规审查通过；实际采集、撤回授权及控制台能力须另验收。
 
 Android APM `2.1.0` 在 `UMConfigure.init` 返回后通过 `UAPMCustomMapping` 写入 `s1=brandId`、`s2=environment`。
