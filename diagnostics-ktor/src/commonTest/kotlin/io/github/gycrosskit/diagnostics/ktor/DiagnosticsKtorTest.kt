@@ -13,6 +13,8 @@ import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.isSaved
 import io.ktor.client.request.get
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
 import io.ktor.client.request.setBody
@@ -34,6 +36,8 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.charsets.Charset
 import io.ktor.utils.io.readByte
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -49,6 +53,102 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class DiagnosticsKtorTest {
+    @OptIn(InternalAPI::class)
+    @Test fun completedStreamingBodyUsesCapturedPolicyAndLeavesConsumptionToHost() = runTest {
+        for (mode in listOf("enabled", "disabled", "excluded", "oversized", "invalid", "binary")) {
+            val store = NetworkLogStore<Unit>()
+            val bytes = if (mode == "invalid") byteArrayOf(0xC3.toByte(), 0x28) else "{\"token\":\"hidden\",\"ok\":true}".encodeToByteArray()
+            val channel = ByteReadChannel(bytes)
+            val client = HttpClient(MockEngine {
+                respond(channel, HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType,
+                    if (mode == "binary") "application/octet-stream" else "application/problem+json"))
+            }) {
+                install(DiagnosticsKtor) {
+                    capture = NetworkCapture(store, { Unit }, captureBody = mode != "disabled",
+                        maxBodyBytes = if (mode == "oversized") 1 else 4096,
+                        include = { mode != "excluded" }, redactBody = { redactNetworkJson(it) })
+                }
+            }
+            try {
+                client.prepareGet("https://example.test/").execute { response ->
+                    assertFalse(response.isSaved)
+                    assertTrue(store.records.value.none { "BODY:" in it.message })
+                    assertTrue(response.rawContent === channel)
+                    val consumed = response.rawContent.readRemaining().readByteArray()
+                    assertTrue(bytes.contentEquals(consumed))
+                    response.recordDiagnosticsBody(consumed)
+                }
+                val bodies = store.records.value.filter { "BODY:" in it.message }
+                assertEquals(if (mode == "enabled") 1 else 0, bodies.size)
+                assertTrue(store.records.value.none { "hidden" in it.message })
+                if (mode == "enabled") assertTrue(bodies.single().message.contains("<redacted>"))
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun jsonAndMultipartRequestContentTypesAreLoggedInBothEnvironments() = runTest {
+        for (environment in listOf("test", "production")) {
+            val store = NetworkLogStore<String>()
+            val json = TextContent("{\"Contents\":\"feedback\"}", ContentType.Application.Json)
+            val multipart = MultiPartFormDataContent(formData { append("Contents", "feedback") }, boundary = "feedback-boundary")
+            val client = HttpClient(MockEngine { data ->
+                val bytes = data.body.toByteArray().decodeToString()
+                if (data.url.encodedPath == "/json") assertEquals(json.text, bytes)
+                else assertTrue(bytes.contains("feedback-boundary") && bytes.contains("feedback"))
+                respond("")
+            }) {
+                install(DiagnosticsKtor) {
+                    capture = NetworkCapture(store, { environment }, captureBody = true, redactBody = { it })
+                }
+            }
+            try {
+                client.post("https://example.test/json") { setBody(json) }
+                client.post("https://example.test/multipart") { setBody(multipart) }
+                val requests = store.records.value.filter { it.kind == NetworkLogKind.REQUEST }
+                assertEquals(2, requests.size)
+                assertTrue(requests.all { it.context == environment })
+                assertTrue(requests[0].message.contains("Content-Type: ${json.contentType}"))
+                assertTrue(requests[1].message.contains("Content-Type: ${multipart.contentType}"))
+                assertFalse(requests[1].message.contains("BODY:"))
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun requestContentTypeMatchesEnginePrecedenceWithoutChangingRequestOrMixingResponseHeaders() = runTest {
+        val store = NetworkLogStore<Unit>()
+        val contentHeader = object : OutgoingContent.ByteArrayContent() {
+            override val headers = headersOf(HttpHeaders.ContentType, "application/x-www-form-urlencoded")
+            override fun bytes() = "payload".encodeToByteArray()
+        }
+        val contents = listOf(
+            TextContent("payload", ContentType.Application.Json),
+            contentHeader,
+            ByteArrayContent("payload".encodeToByteArray()),
+        )
+        val client = HttpClient(MockEngine { data ->
+            val index = data.url.encodedPath.removePrefix("/").toInt()
+            assertEquals(if (index == 0) null else "text/plain", data.headers[HttpHeaders.ContentType])
+            assertEquals("payload", data.body.toByteArray().decodeToString())
+            respond("", headers = headersOf(HttpHeaders.ContentType, "application/problem+json"))
+        }) {
+            install(DiagnosticsKtor) { capture = NetworkCapture(store, { Unit }) }
+        }
+        try {
+            for ((index, content) in contents.withIndex()) {
+                client.post("https://example.test/$index") {
+                    headers.append("content-type", "text/plain")
+                    setBody(content)
+                }
+            }
+            val requests = store.records.value.filter { it.kind == NetworkLogKind.REQUEST }
+            assertEquals(3, requests.size)
+            assertEquals(listOf("application/json", "application/x-www-form-urlencoded", "text/plain"), requests.map { request ->
+                request.message.lineSequence().single { it.startsWith("content-type:", ignoreCase = true) }.substringAfter(": ")
+            })
+            assertTrue(requests.none { it.message.contains("application/problem+json") })
+        } finally { client.close() }
+    }
+
     @Test fun savedJsonIsRedactedAssociatedAndStillReplayable() = runTest {
         val store = NetworkLogStore<String>()
         val request = "{\"token\":\"request-secret\",\"name\":\"allowed\"}"
