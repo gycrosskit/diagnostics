@@ -1,12 +1,12 @@
 {
   "name": "@gycrosskit/diagnostics-umeng",
-  "version": "0.2.0-rc.19",
+  "version": "0.2.0-rc.20",
   "description": "HarmonyOS 可选诊断 umeng",
   "main": "Index.ets",
   "license": "Apache-2.0",
   "repository": "https://github.com/gycrosskit/diagnostics",
   "dependencies": {
-    "@gycrosskit/diagnostics-core": "0.2.0-rc.19",
+    "@gycrosskit/diagnostics-core": "0.2.0-rc.20",
     "@umeng/common": "1.2.0",
     "@umeng/analytics": "1.2.12",
     "@umeng/apm": "1.5.0"

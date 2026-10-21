@@ -20,12 +20,14 @@ class HarInventoryTest(unittest.TestCase):
         self.archive = Path(self.directory.name) / 'fixture.har'
         self.source = ROOT / 'ohos-sdk/core'
 
-    def archive_fixture(self, change=None, runtime=False):
+    def archive_fixture(self, change=None, runtime=False, license_mode="exact"):
         package = json.loads((self.source / 'oh-package.json5').read_text())
         package['compatibleSdkVersion'] = 22
         if change:
             change(package)
         files = {'oh-package.json5': json.dumps(package).encode()}
+        if license_mode != 'missing':
+            files['LICENSE'] = {'exact': (self.source / 'LICENSE').read_bytes(), 'empty': b'', 'altered': b'wrong license'}.get(license_mode, b'')
         for file in [self.source / 'Index.ets', *self.source.glob('src/main/ets/*.ets')]:
             files[file.relative_to(self.source).as_posix()] = file.read_bytes()
         if runtime:
@@ -39,6 +41,22 @@ class HarInventoryTest(unittest.TestCase):
 
     def test_exact_source_and_metadata_are_accepted(self):
         self.assertEqual(len(verifier.verify(self.archive_fixture(), self.source)), 64)
+
+    def test_missing_license_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'LICENSE'):
+            verifier.verify(self.archive_fixture(license_mode='missing'), self.source)
+
+    def test_empty_license_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'LICENSE'):
+            verifier.verify(self.archive_fixture(license_mode='empty'), self.source)
+
+    def test_altered_license_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'LICENSE'):
+            verifier.verify(self.archive_fixture(license_mode='altered'), self.source)
+
+    def test_license_metadata_drift_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'license'):
+            verifier.verify(self.archive_fixture(lambda package: package.update(license='MIT')), self.source)
 
     def test_missing_hvigor_metadata_is_rejected(self):
         with self.assertRaisesRegex(ValueError, 'API22'):

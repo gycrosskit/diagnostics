@@ -458,7 +458,10 @@ jobs:
           case "$VERSION" in
             0.1.0|0.2.0-rc.[1-9]|0.2.0-rc.1[0-8]) echo "Exact tagged iOS native consumers apply from rc.19; skipped for $VERSION"; exit 0 ;;
           esac
-          python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/tagged-ios.log -- env "RUBYOPT=-r$PWD/scripts/verify-tagged-ios-sdk.rb" pod
+          CI_IOS_METADATA="$RUNNER_TEMP/diagnostics-tagged-ios-metadata"
+          git clone --depth 1 --branch "$VERSION" https://github.com/gycrosskit/diagnostics.git "$CI_IOS_METADATA"
+          cd "$CI_IOS_METADATA"
+          python3 "$GITHUB_WORKSPACE/scripts/ci-run.py" --no-progress-seconds 300 --log "$GITHUB_WORKSPACE/ci-diagnostics/tagged-ios.log" -- env "TAGGED_IOS_DIAGNOSTICS=$GITHUB_WORKSPACE/ci-diagnostics/tagged-ios" "RUBYOPT=-r$GITHUB_WORKSPACE/scripts/verify-tagged-ios-sdk.rb" pod
       - name: Explain lightweight completion
         if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)) }}
         run: echo 'No build is required for this event and scope.'

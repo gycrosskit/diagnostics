@@ -5,7 +5,7 @@
 **rc.19 源码包含 InternalPlugin 接入修复；旧 rc.16 不含该修复。** 安装前核验 Registry 中的精确版本；未上架时仅按 Release 摘要消费 HAR，不能把提交审核当成上架。
 
 ```bash
-ohpm install @gycrosskit/diagnostics-umeng@0.2.0-rc.19
+ohpm install @gycrosskit/diagnostics-umeng@0.2.0-rc.20
 ```
 
 由宿主显式选择供应商并传入配置，组件不依赖业务宿主。安装库不代表已完成设备、供应商服务或上报验收。

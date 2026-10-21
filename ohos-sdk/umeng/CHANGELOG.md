@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.2.0-rc.20
+
+- 将仓库原 Apache-2.0 LICENSE 文本纳入真实 HAR，补齐 OHPM 开源包检查。
+- Maven / iOS 保持 rc.19；本版仅修正 HAR 许可打包，API、供应商依赖与授权行为不变。
+
 ## 0.2.0-rc.19
 
 - 固定 analytics `1.2.12`，通过 Common 公共入口注册 `InternalPlugin + ApmPlugin`，避免 `analytics.preInit` 自动附带的 `SourcePlugin`。
