@@ -14,6 +14,27 @@ class TaggedPodValidator < Pod::Validator
   attr_reader :compiler_proof
   attr_accessor :compiler_log
 
+  attr_accessor :release_commit
+
+  # External Git/commit sources retain an auditable checkout in CocoaPods locks.
+  def podfile_from_spec(platform_name, deployment_target, *)
+    repository = spec.source[:git]
+    commit = release_commit
+    raise 'Missing immutable Pod source commit' unless commit&.match?(/\A[a-f0-9]{40}\z/)
+    names = [spec.name]
+    names << 'GYDiagnosticsSdk' if %w[GYDiagnosticsBugly GYDiagnosticsUmeng].include?(spec.name)
+    urls = source_urls
+    Pod::Podfile.new do
+      install! 'cocoapods', deterministic_uuids: false, warn_for_unused_master_specs_repo: false
+      urls.each { |url| source(url) }
+      target 'App' do
+        use_frameworks!(linkage: :static)
+        platform(platform_name, deployment_target)
+        names.each { |name| pod name, git: repository, commit: commit }
+      end
+    end
+  end
+
   def xcodebuild(action, scheme, configuration, deployment_target:)
     output = super
     if action == 'build'
@@ -34,9 +55,9 @@ version = ENV['VERSION'] || (check_only && Pod::Specification.from_file('GYDiagn
 abort 'An immutable numeric release tag is required' unless version && version.match?(/\A[0-9][0-9A-Za-z._-]*\z/)
 root = Dir.pwd
 repository = 'https://github.com/gycrosskit/diagnostics.git'
-output = File.join(root, 'ci-diagnostics', 'tagged-ios')
+output = ENV.fetch('TAGGED_IOS_DIAGNOSTICS', File.join(root, 'ci-diagnostics', 'tagged-ios'))
 FileUtils.mkdir_p(output)
-proof = { version: version, rubyVersion: RUBY_VERSION, rubyExecutable: RbConfig.ruby, cocoaPodsVersion: Pod::VERSION, metadataInput: 'local exact-tag podspec only; compiled sources downloaded by CocoaPods', pods: [] }
+proof = { version: version, rubyVersion: RUBY_VERSION, rubyExecutable: RbConfig.ruby, cocoaPodsVersion: Pod::VERSION, verifierSourceCommit: ENV['GITHUB_SHA'], verifierScriptSha256: Digest::SHA256.file(__FILE__).hexdigest, metadataInput: 'isolated exact-tag checkout; remote Git/commit Pods with downloaded-byte and compiler proof', pods: [] }
 puts "Tagged iOS runtime: Ruby #{RUBY_VERSION}, CocoaPods #{Pod::VERSION}, #{RbConfig.ruby}"
 unless check_only
   refs, error, status = Open3.capture3('git', 'ls-remote', '--tags', repository, "refs/tags/#{version}", "refs/tags/#{version}^{}")
@@ -48,6 +69,13 @@ unless check_only
   abort 'Release metadata checkout must equal the exact tag' unless status.success? && head.strip == tag_sha
   proof[:tagCommit] = tag_sha
 end
+metadata_commit = tag_sha
+if check_only
+  # Exercise the real Podfile API with the source checkout SHA, without downloads.
+  current, error, status = Open3.capture3('git', 'rev-parse', 'HEAD')
+  abort "Cannot identify source contract checkout: #{error}" unless status.success?
+  metadata_commit = current.strip
+end
 %w[GYDiagnosticsNative GYDiagnosticsSdk GYDiagnosticsBugly GYDiagnosticsUmeng].each do |name|
   file = File.join(root, "#{name}.podspec")
   spec = Pod::Specification.from_file(file)
@@ -56,8 +84,15 @@ end
     tagged_metadata, error, status = Open3.capture3('git', 'show', "#{tag_sha}:#{name}.podspec")
     abort "#{name}: metadata bytes differ from tag: #{error}" unless status.success? && tagged_metadata.b == File.binread(file)
   end
-  next if check_only
   validator = TaggedPodValidator.new(file, ['https://cdn.cocoapods.org/'], ['ios'])
+  validator.release_commit = metadata_commit
+  expected_pods = [name]
+  expected_pods << 'GYDiagnosticsSdk' if %w[GYDiagnosticsBugly GYDiagnosticsUmeng].include?(name)
+  if check_only
+    dependencies = validator.send(:podfile_from_spec, :ios, '14.0').dependencies
+    abort "#{name}: unpinned Podfile contract" unless dependencies.map(&:name).sort == expected_pods.sort && dependencies.all? { |dependency| dependency.external_source == { git: repository, commit: metadata_commit } }
+    next
+  end
   validator.compiler_log = File.join(output, "#{name}-compiler.log")
   validator.local = false
   validator.use_frameworks = true
@@ -66,27 +101,22 @@ end
   validator.fail_fast = true
   validator.no_clean = true
   validator.validation_dir = File.join(ENV.fetch('RUNNER_TEMP'), 'diagnostics-tagged-ios', name)
-  expected_pods = [name]
-  if %w[GYDiagnosticsBugly GYDiagnosticsUmeng].include?(name)
-    # :podspec supplies metadata; :path would compile local checkout sources.
-    validator.external_podspecs = File.join(root, 'GYDiagnosticsSdk.podspec')
-    expected_pods << 'GYDiagnosticsSdk'
-  end
   abort "#{name}: #{validator.failure_reason}" unless validator.validate
   abort "#{name}: compiler was skipped" unless validator.compiler_proof
   lock_path = validator.validation_dir + 'Podfile.lock'
   abort "#{name}: missing consumer lock" unless lock_path.file?
+  FileUtils.cp(lock_path, File.join(output, "#{name}-Podfile.lock.txt"))
   lock = Pod::Lockfile.from_file(lock_path)
-  external = lock.internal_data.fetch('EXTERNAL SOURCES')
-  checkout = lock.internal_data.fetch('CHECKOUT OPTIONS')
+  external = lock.internal_data.fetch('EXTERNAL SOURCES').transform_values { |options| options.transform_keys { |key| key.to_s.delete_prefix(':') } }
+  checkout = lock.internal_data.fetch('CHECKOUT OPTIONS').transform_values { |options| options.transform_keys { |key| key.to_s.delete_prefix(':') } }
   abort "#{name}: unexpected external source" unless external.keys.sort == expected_pods.sort
-  abort "#{name}: local source path" if external.values.any? { |value| value.key?(':path') }
+  abort "#{name}: local source path" if external.values.any? { |value| value.key?('path') }
   source_files = {}
   expected_pods.each do |pod|
     metadata = external.fetch(pod)
     options = checkout.fetch(pod)
-    abort "#{pod}: metadata source mismatch" unless metadata == { ':podspec' => File.join(root, "#{pod}.podspec") }
-    abort "#{pod}: downloaded commit/version mismatch" unless options[':git'] == repository && options[':commit'] == tag_sha && !options.key?(':path') && lock.version(pod).to_s == version
+    abort "#{pod}: metadata source mismatch" unless metadata == { 'git' => repository, 'commit' => tag_sha }
+    abort "#{pod}: downloaded commit/version mismatch" unless options['git'] == repository && options['commit'] == tag_sha && !options.key?('path') && lock.version(pod).to_s == version
     installed_spec = Pod::Specification.from_file(validator.validation_dir + "Pods/Local Podspecs/#{pod}.podspec.json")
     abort "#{pod}: installed spec mismatch" unless installed_spec.version.to_s == version && installed_spec.source[:git] == repository && installed_spec.source[:tag] == version
     files = Array(installed_spec.attributes_hash['source_files']).flat_map { |pattern| Dir.glob(File.join(root, pattern)) }.select { |path| File.file?(path) }.uniq.sort
@@ -99,7 +129,6 @@ end
       [relative, digest]
     end
   end
-  FileUtils.cp(lock_path, File.join(output, "#{name}-Podfile.lock.txt"))
   proof[:pods] << { name: name, version: spec.version.to_s, source: spec.source,
                     podspecSha256: Digest::SHA256.file(file).hexdigest,
                     lockSha256: Digest::SHA256.file(lock_path).hexdigest,
