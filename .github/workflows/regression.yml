@@ -444,13 +444,13 @@ jobs:
           case "$VERSION" in 0.1.0|0.2.0-rc.[1-5]) network=false ;; esac
           if [[ "$(uname -m)" == arm64 ]]; then simulator=linkDebugFrameworkIosSimulatorArm64; simulator_test=iosSimulatorArm64Test; else simulator=linkDebugFrameworkIosX64; simulator_test=iosX64Test; fi
           python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/release-native.log -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info -p verification-consumer compileKotlinIosArm64 "$simulator" "$simulator_test" linkDebugSharedOhosArm64 -PdiagnosticsVersion="$VERSION" -PdiagnosticsClosure=true -PdiagnosticsNetwork="$network" -PdiagnosticsProviders=true --refresh-dependencies --no-daemon --max-workers=1
-      - name: Verify exact tagged iOS Pod consumers
+      - name: Verify exact tagged iOS native consumers
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.version != '' && !inputs.archive_prebuilt)
         timeout-minutes: 25
         run: |
           # 冻结旧版本保留原 Maven/Native consumer，不追加其尚未提供的四 Pod 验证。
           case "$VERSION" in
-            0.1.0|0.2.0-rc.[1-9]|0.2.0-rc.1[0-8]) echo "Exact tagged iOS Pods apply from rc.19; skipped for $VERSION"; exit 0 ;;
+            0.1.0|0.2.0-rc.[1-9]|0.2.0-rc.1[0-8]) echo "Exact tagged iOS native consumers apply from rc.19; skipped for $VERSION"; exit 0 ;;
           esac
           CI_POD_PREFIX="$(brew --prefix)"
           python3 scripts/ci-run.py --no-progress-seconds 300 --log ci-diagnostics/tagged-ios.log -- env "GEM_HOME=$CI_POD_PREFIX/opt/cocoapods/libexec" "$CI_POD_PREFIX/opt/ruby/bin/ruby" scripts/verify-tagged-ios-sdk.rb

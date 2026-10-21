@@ -4,6 +4,7 @@ require 'digest'
 require 'fileutils'
 require 'json'
 require 'open3'
+require 'tmpdir'
 
 # Validator may skip Xcode silently; every release consumer must compile for real.
 class TaggedPodValidator < Pod::Validator
@@ -101,4 +102,61 @@ end
                     checkout: checkout, downloadedSourceFiles: source_files, compiler: validator.compiler_proof, result: 'passed' }
   File.write(File.join(output, 'proof.json'), JSON.pretty_generate(proof) + "\n")
 end
-puts 'Tagged iOS Pod source/version contract passed' if check_only
+fixture = 'verification-consumer/ios-native'
+fixture_files = %w[Package.swift Sources/NativeConsumer.swift]
+manifest = File.read(File.join(fixture, 'Package.swift'))
+default_dependency = 'exact: "0.2.0-rc.1"'
+abort 'Native fixture default dependency changed' unless manifest.scan(default_dependency).length == 1
+if check_only
+  puts 'Tagged iOS Pod and SwiftPM source/version contract passed; no public compilation'
+  exit
+end
+# Keep the fixture's historical default; only the isolated release consumer pins this tag.
+stage = Dir.mktmpdir('diagnostics-tagged-spm-', ENV.fetch('RUNNER_TEMP'))
+fixture_hashes = fixture_files.to_h do |relative|
+  original = File.binread(File.join(fixture, relative))
+  tagged, error, status = Open3.capture3('git', 'show', "#{tag_sha}:#{fixture}/#{relative}")
+  abort "SwiftPM fixture differs from tag: #{relative}: #{error}" unless status.success? && tagged.b == original
+  target = File.join(stage, relative)
+  FileUtils.mkdir_p(File.dirname(target))
+  File.binwrite(target, relative == 'Package.swift' ? original.sub(default_dependency, "exact: \"#{version}\"") : original)
+  [relative, { tagSha256: Digest::SHA256.hexdigest(original), consumerSha256: Digest::SHA256.file(target).hexdigest }]
+end
+packages = File.join(stage, 'source-packages')
+command = ['xcodebuild', '-scheme', 'DiagnosticsNativeConsumer', '-destination', 'generic/platform=iOS Simulator',
+           '-configuration', 'Debug', '-derivedDataPath', File.join(stage, 'derived-data'),
+           '-clonedSourcePackagesDirPath', packages, 'build']
+compiler_log = File.join(output, 'SwiftPM-compiler.log')
+compiler_status = nil
+File.open(compiler_log, 'w') do |log|
+  Open3.popen2e(*command, chdir: stage) do |input, stream, process|
+    input.close
+    stream.each_line { |line| log.write(line); log.flush; $stdout.write(line); $stdout.flush }
+    compiler_status = process.value
+  end
+end
+compiler_output = File.read(compiler_log)
+compile_rows = compiler_output.lines.select { |line| line.match?(/SwiftCompile|CompileSwift/) }
+abort 'SwiftPM consumer compilation failed or skipped' unless compiler_status.success? && compiler_output.include?('** BUILD SUCCEEDED **') && compile_rows.any? { |line| line.include?('NativeConsumer.swift') }
+locks = ['Package.resolved', '.swiftpm/xcode/package.xcworkspace/xcshareddata/swiftpm/Package.resolved'].map { |path| File.join(stage, path) }.select { |path| File.file?(path) }
+abort 'SwiftPM consumer lock is missing' if locks.empty?
+locks.each_with_index do |path, index|
+  pins = JSON.parse(File.read(path)).fetch('pins')
+  abort 'SwiftPM unexpected dependencies' unless pins.length == 1
+  pin = pins.first
+  abort 'SwiftPM lock tag/revision mismatch' unless pin['identity'] == 'diagnostics' && pin['location'] == repository && pin['state']['version'] == version && pin['state']['revision'] == tag_sha
+  FileUtils.cp(path, File.join(output, "SwiftPM-Package-#{index}.resolved.txt"))
+end
+downloaded = File.join(packages, 'checkouts', 'diagnostics')
+checkout_sha, error, status = Open3.capture3('git', '-C', downloaded, 'rev-parse', 'HEAD')
+abort "SwiftPM checkout differs from tag: #{error}" unless status.success? && checkout_sha.strip == tag_sha
+native_sources = Dir.glob(File.join(root, 'ios-support', '*.swift')).sort.to_h do |source|
+  relative = Pathname(source).relative_path_from(Pathname(root)).to_s
+  digest = Digest::SHA256.file(source).hexdigest
+  abort "SwiftPM downloaded source differs: #{relative}" unless Digest::SHA256.file(File.join(downloaded, relative)).hexdigest == digest
+  [relative, digest]
+end
+proof[:swiftPackage] = { version: version, revision: tag_sha, fixtureFiles: fixture_hashes, downloadedSourceFiles: native_sources,
+                         command: command, compilerLogSha256: Digest::SHA256.file(compiler_log).hexdigest,
+                         ownConsumerCompiled: 'NativeConsumer.swift', locksChecked: locks.length, result: 'passed' }
+File.write(File.join(output, 'proof.json'), JSON.pretty_generate(proof) + "\n")

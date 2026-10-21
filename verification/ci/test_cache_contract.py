@@ -157,7 +157,7 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
 print('Metadata recovery: 11 cases; bounded exact-host TCP retries, no compilation/test retry')
 
 # 从 main 验旧版本仍执行原消费者；新四 Pod 验证只适用于 rc.19 及后续。
-tagged_step = jobs['release-native'].split('      - name: Verify exact tagged iOS Pod consumers\n', 1)[1].split('      - name:', 1)[0]
+tagged_step = jobs['release-native'].split('      - name: Verify exact tagged iOS native consumers\n', 1)[1].split('      - name:', 1)[0]
 tagged_commands = tagged_step.split('        run: |\n', 1)[1]
 tagged_commands = '\n'.join(line[10:] for line in tagged_commands.splitlines())
 with tempfile.TemporaryDirectory() as directory:
