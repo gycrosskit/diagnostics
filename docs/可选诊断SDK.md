@@ -1,16 +1,16 @@
 # 可选诊断 SDK
 
-`0.2.0-rc.16` 以独立 Maven 组件提供 Bugly、友盟适配。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
+`0.2.0-rc.17` 以独立 Maven 组件提供 Bugly、友盟适配。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
 
 ## 依赖与职责
 
 | 平台 | Bugly 入口 | 友盟入口 |
 | --- | --- | --- |
-| Android Maven | `diagnostics-bugly` rc.16 | `diagnostics-umeng` rc.16 |
-| iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.13 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.13 |
+| Android Maven | `diagnostics-bugly` rc.17 | `diagnostics-umeng` rc.17 |
+| iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.17 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.17 |
 | OHOS Release HAR | `DiagnosticsCore.har` + `DiagnosticsBugly.har` | `DiagnosticsCore.har` + `DiagnosticsUmeng.har` |
 
-iOS Git Pods 保持已验收的 rc.13；Maven 与 OHOS HAR 使用 rc.16。rc.16 扩展 OHOS 完整运行配置载荷，原有四参构造器和无载荷请求保持兼容；rc.14/rc.15 的 Android 依赖修复继续保留。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
+本轮 Maven / iOS Git Pods 配套 rc.17，OHOS HAR / OHPM 保持 rc.16；各渠道以精确 Release 和消费门禁为准。rc.16 扩展 OHOS 完整运行配置载荷，原有四参构造器和无载荷请求保持兼容；rc.14/rc.15 的 Android 依赖修复继续保留。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
 
 对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主默认选择 `none`，本期提供 `bugly` / `umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
 
@@ -28,7 +28,7 @@ KMP 公共契约位于 `io.github.gycrosskit.diagnostics.sdk`；Android 具体�
 宿主已有的品牌、构建类型、版本、build number 和授权后的安装标识作为运行上下文传入；组件不维护品牌清单或业务环境配置。
 配置中的 `brandId` / `environment` 另表示凭据适用范围，须与真实上下文匹配，不应直接复制当前构建值来绕过校验。
 `environment` 为 `debug` / `qa` / `release`；后端 test/production、推广渠道、厂商服务区域分别处理。
-已发布 iOS rc.13 不透传品牌/环境；本轮未发布源码补齐 Android / iOS 友盟自定义维度，具体映射和未验收边界见下节。OHOS 友盟仍没有覆写安装标识、版本/build 或同等业务维度的公开入口。
+旧 iOS rc.13 不透传品牌/环境；rc.17 补齐 Android / iOS 友盟自定义维度，具体映射和未验收边界见下节。OHOS 友盟仍没有覆写安装标识、版本/build 或同等业务维度的公开入口。
 core 的 Android runtime 显式提供同版 `kotlinx-coroutines-android`，确保极简宿主也能使用初始化入口的 Main dispatcher；不依赖宿主恰好引入 UI 协程。
 需要严格隔离时应使用对应项目凭据；不复用 channel 充当品牌或环境，也不把统一接口说成各 SDK 元数据能力完全相同。
 客户端配置不包含控制台 Token、符号上传密钥或服务端 API 凭据；新供应商所需参数由其适配组件维护。
@@ -41,7 +41,9 @@ rc.16 的 OHOS 配置补丁扩展现有 `initialize` 请求：Kotlin 透传完�
 宿主打包选择须独立于运行配置；原生 Runtime 第五个可选参数 `installedProvider` 声明包内唯一实现，省略时沿用构建配置的 provider，兼容现有四参调用。缺客户端参数时可保留显式选中的 SDK 而以 `none` 运行；接入配置接口前升级到包含此补丁的新 Maven/HAR，并传入真实安装选择。rc.16 源码提交 `ccf549c` 已通过[远程源码门禁](https://github.com/gycrosskit/diagnostics/actions/runs/39010793210)，三个 HAR 已由真实 Hvigor 独立重新构建并校验源码 API 与摘要；rc.16 发布以本版源码、冻结归档和公开消费门禁为准，不以 rc.15 / 原生 rc.13 的旧回执代替，也不将编译与替身测试当作设备或真实接口下发验收。
 `configure` 只接受首次调用；接口/缓存必须先解析为确定快照，不能先用 `none` 占位再等待网络重复配置。
 
-## 友盟品牌与环境维度（本轮未发布）
+<a id="友盟品牌与环境维度本轮未发布"></a>
+
+## 友盟品牌与环境维度（rc.17）
 
 Android APM `2.1.0` 在 `UMConfigure.init` 返回后通过 `UAPMCustomMapping` 写入 `s1=brandId`、`s2=environment`。
 iOS UMAPM `2.0.7` 在 `UMConfigure.initWithAppkey` 返回后通过 `UMAPMCustomData` 的 `.key1` / `.key2` 写入同一约定，再调用 `UMCrashConfigure.update`；组件公开头补充 `UMAPMCustomData.h`。
@@ -49,10 +51,10 @@ iOS UMAPM `2.0.7` 在 `UMConfigure.initWithAppkey` 返回后通过 `UMAPMCustomD
 `environment` 仅表示 `debug` / `qa` / `release` 构建类型；版本和 build number 保持原映射，`channel` 仍是分发渠道。
 这些字段不替代现有品牌/环境适用范围校验；复用 AppKey 时也不能用通配品牌绕过检查。
 
-官方 Android / iOS 接口提供 10 个 String 维度，可用于错误个例筛选及分布；普通 `addCustomInfo` 不等于可检索维度。控制台需具备相应套餐并登记维度展示名称，本轮不修改后台。
+官方 Android / iOS 接口提供 10 个 String 维度，可用于错误个例筛选及分布；普通 `addCustomInfo` 不等于可检索维度。自定义维度的展示和筛选取决于控制台权限及维度名称配置，本轮不修改后台。内建 App 包名筛选是另一入口：2026-10-20 核对 Android / iOS 免费版崩溃页可打开该筛选且无升级提示，但暂无样本；免费版仅提供今日基础崩溃洞察，不能据此承诺历史数据、告警或自定义维度免费。共用同一包名的品牌无法靠包名区分。
 维度在 SDK 初始化后设置，初始化前或设置前的早期崩溃不承诺携带标签；初始化返回也不证明后台已收数。
 多独立包共用 AppKey 的完整支持、按品牌计算崩溃率分母、聚合隔离、独立告警及多品牌符号表匹配仍须分别验收，不能仅凭个例筛选承诺隔离。
-源码候选尚未发布；宿主采用这些新增 Swift 参数前须配套同版原生候选，未来发布后再同步同 Git source 的全部 Pod tag，不修改旧发布版本。
+宿主使用这些新增 Swift 参数须配套 rc.17 原生组件，并统一同 Git source 的全部 diagnostics Pod tag；Maven 也固定 rc.17，OHOS HAR 继续 rc.16。发布结果以不可变 tag、冻结归档和公开消费门禁为准，不修改旧发布版本。
 
 ### 鸿蒙 Common 与 ANR
 
