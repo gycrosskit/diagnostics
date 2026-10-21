@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | Android Maven | `diagnostics-bugly` rc.19 | `diagnostics-umeng` rc.19 |
 | iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.19 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.19 |
-| OHOS Release HAR | `DiagnosticsCore.har` + `DiagnosticsBugly.har` | `DiagnosticsCore.har` + `DiagnosticsUmeng.har` |
+| OHOS Release HAR rc.20 | `DiagnosticsCore-0.2.0-rc.20.har` + `DiagnosticsBugly-0.2.0-rc.20.har` | `DiagnosticsCore-0.2.0-rc.20.har` + `DiagnosticsUmeng-0.2.0-rc.20.har` |
 
-本轮 Maven / iOS Git Pods / OHOS HAR 配套 rc.19；各渠道以精确 Release 和消费门禁为准。rc.16 扩展 OHOS 完整运行配置载荷，原有四参构造器和无载荷请求保持兼容；rc.14/rc.15 的 Android 依赖修复继续保留。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
+本轮 Maven / 全部 iOS Git Pods 保持 rc.19，OHOS HAR 配套 rc.20；各渠道以精确 Release 和消费门禁为准。rc.16 扩展 OHOS 完整运行配置载荷，原有四参构造器和无载荷请求保持兼容；rc.14/rc.15 的 Android 依赖修复继续保留。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
 
 对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主默认选择 `none`，本期提供 `bugly` / `umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
 
@@ -58,13 +58,13 @@ iOS UMAPM `2.0.7` 在 `UMConfigure.initWithAppkey` 返回后通过 `UMAPMCustomD
 官方 Android / iOS 接口提供 10 个 String 维度，可用于错误个例筛选及分布；普通 `addCustomInfo` 不等于可检索维度。自定义维度的展示和筛选取决于控制台权限及维度名称配置，本轮不修改后台。内建 App 包名筛选是另一入口：2026-10-20 核对 Android / iOS 免费版崩溃页可打开该筛选且无升级提示，但暂无样本；免费版仅提供今日基础崩溃洞察，不能据此承诺历史数据、告警或自定义维度免费。共用同一包名的品牌无法靠包名区分。
 维度在 SDK 初始化后设置，初始化前或设置前的早期崩溃不承诺携带标签；初始化返回也不证明后台已收数。
 多独立包共用 AppKey 的完整支持、按品牌计算崩溃率分母、聚合隔离、独立告警及多品牌符号表匹配仍须分别验收，不能仅凭个例筛选承诺隔离。
-这些 Swift 参数从 rc.17 提供；接入本轮版本时，同 Git source 的全部 diagnostics Pod tag 应统一为 rc.19，Maven / OHOS HAR 同为 rc.19。发布结果以不可变 tag、冻结归档和公开消费门禁为准，不修改旧发布版本。
+这些 Swift 参数从 rc.17 提供；接入本轮版本时，同 Git source 的全部 diagnostics Pod tag 应统一为 rc.19，Maven 保持 rc.19，OHOS HAR 配套 rc.20。发布结果以不可变 tag、冻结归档和公开消费门禁为准，不修改旧发布版本。
 
 ### 鸿蒙 Common 与 ANR
 
 Common `1.2.0` 的 `Uma.bindContext` 在使用传入参数前仍读取应用资源 `rawfile/umconfig.json`；缺失时内部捕获异常并返回，`agree()` 返回不代表插件已安装。使用本版公开 HAR 的应用须提供此资源，可仅含 `{}`，AppKey/channel 继续从私有参数传入。资源存在、初始化回执、系统异常事件及云端收数须分别核对。
 
-**rc.19 鸿蒙源码**固定 `@umeng/common:1.2.0` / `@umeng/analytics:1.2.12` / `@umeng/apm:1.5.0`。按[官方集成方案](https://devs.umeng.com/docs/193624/detail/2835970)补齐 `InternalPlugin + ApmPlugin`；Common 发布包明确要求配合 analytics 使用。仍用 `core.Uma.bindContext → core.Uma.agree`，不调用会自动加入 `SourcePlugin` 的 `analytics.preInit`。已发布 rc.16 HAR 只有 APM 插件，不含此修复。
+**rc.20 鸿蒙 HAR（沿用 rc.19 运行时源码行为）**固定 `@umeng/common:1.2.0` / `@umeng/analytics:1.2.12` / `@umeng/apm:1.5.0`。按[官方集成方案](https://devs.umeng.com/docs/193624/detail/2835970)补齐 `InternalPlugin + ApmPlugin`；Common 发布包明确要求配合 analytics 使用。仍用 `core.Uma.bindContext → core.Uma.agree`，不调用会自动加入 `SourcePlugin` 的 `analytics.preInit`。已发布 rc.16 HAR 只有 APM 插件，不含此修复。
 
 2026-10-21 查询[Common 官方 Registry](https://ohpm.openharmony.cn/ohpm/@umeng/common)最新为 `1.2.0`，不存在 `1.2.2`；该历史版本号存在于独立的 [analytics 包](https://ohpm.openharmony.cn/ohpm/@umeng/analytics)。后台 ANR 提示“Common ≥1.2.2”与公开信息及独立包 Common1.2.0 的真实入库冲突，不能据此升级未发布版本，也不能猜测提示所指包名；通用最低版本仍待官方澄清。
 实际 HAR 的静态调用链是 `Uma.agree → ApmPlugin.agree → worker → LogBuilder.initialize → watchdog → hiAppEvent.addWatcher(APP_FREEZE) → AppFreezeHandler.handleAppFreeze`。
@@ -121,4 +121,4 @@ Android 启用第三方崩溃时先交出本地实时 handler，明确抛错恢�
 
 源码用现有 `regression.yml`：core 并发/授权/队列/脱敏测试，两个 Android 适配模块行为测试与 none/Bugly/友盟三组真实 R8 消费，真实 Native 编译与独立 Pod lint，OHOS Runtime/Module 和 Renderer 生命周期测试。冻结归档与公开 Maven 全量校验后，由 `verification-consumer` 仅消费精确发布坐标；宿主另验证 none 和选中供应商工厂。
 
-rc.19 HAR 工程使用 HarmonyOS6.0.2 / API22 的 target/compatible 与 model，真实工具版本另记于 provenance。HAR 只接受真实 Hvigor `assembleHar` 输出并校验源码、版本、API22 和依赖；源码 ZIP 不算 HAR。OHPM 未审核上架前使用不可变 Release HAR，不能宣称 Registry 可用。源码测试、SDK 编译、远程消费、设备启动和真实后台回捞分别记录；无配置时不运行真实 SDK 上报。
+rc.20 HAR 工程使用 HarmonyOS6.0.2 / API22 的 target/compatible 与 model，真实工具版本另记于 provenance。HAR 只接受真实 Hvigor `assembleHar` 输出并校验源码、版本、API22 和依赖；源码 ZIP 不算 HAR。OHPM 未审核上架前使用不可变 Release HAR，不能宣称 Registry 可用。源码测试、SDK 编译、远程消费、设备启动和真实后台回捞分别记录；无配置时不运行真实 SDK 上报。

@@ -3,7 +3,7 @@
 提供 HarmonyOS 诊断配置、运行时及 Kuikly Module。
 
 ```bash
-ohpm install @gycrosskit/diagnostics-core@0.2.0-rc.19
+ohpm install @gycrosskit/diagnostics-core@0.2.0-rc.20
 ```
 
 由宿主显式选择供应商并传入配置，组件不依赖业务宿主。安装库不代表已完成设备、供应商服务或上报验收。

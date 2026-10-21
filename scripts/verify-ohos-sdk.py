@@ -24,11 +24,18 @@ def verify(archive, source):
                 raise ValueError('HAR member must be a file: ' + name)
             return har.extractfile(member).read()
         metadata = json.loads(contents('oh-package.json5'))
-        for key in ('name', 'version', 'dependencies'):
+        for key in ('name', 'version', 'dependencies', 'license'):
             if metadata.get(key) != expected.get(key):
                 raise ValueError('HAR metadata differs from source: ' + key)
         if metadata.get('compatibleSdkVersion') != 22:
             raise ValueError('HAR must declare actual Hvigor API22 compatibility metadata')
+        source_license = (source / 'LICENSE').read_bytes()
+        try:
+            packed_license = contents('LICENSE')
+        except KeyError as error:
+            raise ValueError('HAR must contain its non-empty LICENSE') from error
+        if not packed_license.strip() or packed_license != source_license:
+            raise ValueError('HAR LICENSE differs from non-empty source LICENSE')
         for file in [source / 'Index.ets', *sorted((source / 'src/main/ets').glob('*.ets'))]:
             if contents(file.relative_to(source).as_posix()) != file.read_bytes():
                 raise ValueError('HAR differs from source API: ' + file.name)

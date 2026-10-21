@@ -2,11 +2,13 @@
 
 本库提供 Core、可选网络/通知及 Bugly / 友盟适配，原生宿主和 Kuikly 复用公开能力。三端入口、公开功能组和设备验收边界见[功能与平台差异](docs/功能与平台差异.md)。
 
-**本轮配套版本：Maven / iOS Git Pods / OHOS HAR `0.2.0-rc.19`。** rc.19 包含 Android 友盟初始化顺序、iOS ASA 关闭与 OHOS InternalPlugin 修复，并保留 rc.18 的 Ktor 有效 `Content-Type` 和 `HttpResponse.recordDiagnosticsBody(bytes)`。默认 `none` 不引入供应商 SDK；真实品牌/环境维度与隐私准入合同保持不变。各渠道可用性须分别核对 [rc.19 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)。
+**本轮配套版本：Maven / iOS Git Pods `0.2.0-rc.19`，OHOS HAR `0.2.0-rc.20`。** rc.19 包含 Android 友盟初始化顺序、iOS ASA 关闭与 OHOS InternalPlugin 修复，并保留 rc.18 的 Ktor 有效 `Content-Type` 和 `HttpResponse.recordDiagnosticsBody(bytes)`。默认 `none` 不引入供应商 SDK；真实品牌/环境维度与隐私准入合同保持不变。各渠道可用性须分别核对 [rc.19 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)。
+
+OHOS rc.19 的真实 HAR 因缺少 LICENSE 文本被 Registry 拒绝，原 tag / Release 资产保留；rc.20 仅补齐原 Apache-2.0 许可文件与三包配套版本，不改变运行时 API。以独立 `ohos-0.2.0-rc.20` tag 固定源，rc.19 Release 仅追加带 rc.20 文件名的资产；Registry 上架、下载和消费另行核验。
 
 rc.17 同时包含 Swift 直接消费快照的 `DiagnosticReadSnapshot.closeWithError()`，通过 NSError 返回关闭失败；Kotlin 继续使用 `use`，见[快照接入](docs/机制接入.md#原子只读-reader-快照rc12)。旧 rc.16 不含此入口和本次友盟维度；旧标签与归档不覆盖。
 
-rc.19 OHOS 固定 Common `1.2.0` / analytics `1.2.12` / APM `1.5.0`，由 Common 公共入口注册 `InternalPlugin + ApmPlugin`，避开 `SourcePlugin`；仅在宿主同意性能监控及启动/会话统计用途后启用。API22 构建配置与真实 SDK 对齐；工具版本、源码及同轮 Core HAR 消费摘要随 Release 留存。披露、资源与 ANR 边界见[鸿蒙接入合同](docs/可选诊断SDK.md#鸿蒙-common-与-anr)。包名筛选不等于品牌独立比率或告警。
+rc.20 OHOS 固定 Common `1.2.0` / analytics `1.2.12` / APM `1.5.0`，由 Common 公共入口注册 `InternalPlugin + ApmPlugin`，避开 `SourcePlugin`；仅在宿主同意性能监控及启动/会话统计用途后启用。API22 构建配置与真实 SDK 对齐；工具版本、源码及同轮 Core HAR 消费摘要随 Release 留存。披露、资源与 ANR 边界见[鸿蒙接入合同](docs/可选诊断SDK.md#鸿蒙-common-与-anr)。包名筛选不等于品牌独立比率或告警。
 
 rc.19 的 Android 适配在真实授权准入内先 `preInit` 准备 Common 上下文，再同步授权并 `init`；iOS 在初始化前关闭 ASA token 采集。旧 Maven rc.18 / iOS Pods rc.17 / OHOS HAR rc.16 不含这些补丁，标签与归档保持不变。源码测试、内部真机证据和新版本公开消费分别验收。
 
