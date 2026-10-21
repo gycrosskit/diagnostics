@@ -2,6 +2,8 @@
 
 提供可选的友盟诊断适配器，依赖同版本 diagnostics-core。
 
+**当前源码含未发布的 InternalPlugin 接入修复。下面的已发布 rc.16 坐标不含该修复；本轮不更新版本或发布归档。**
+
 ```bash
 ohpm install @gycrosskit/diagnostics-umeng@0.2.0-rc.16
 ```
@@ -12,7 +14,18 @@ ohpm install @gycrosskit/diagnostics-umeng@0.2.0-rc.16
 
 许可证：Apache-2.0。
 
-## Common 版本与 ANR 边界
+## 初始化与隐私同意
 
-当前固定 Common `1.2.0` / APM `1.5.0`。[官方 Harmony 集成页](https://devs.umeng.com/docs/193624/detail/2835970)要求 Common ≥ `1.1.1`；2026-10-20 查询[Common 官方 Registry](https://ohpm.openharmony.cn/ohpm/@umeng/common)没有 `1.2.2`，后台 ANR 的同名版本提示与公开包信息冲突，不能据此升级或加入 analytics。
-仅注册 `ApmPlugin` 的静态链路可到 `hiAppEvent` 的 `APP_FREEZE` watcher，`enableJSCatch=false` 不截断此链路；插件/worker 异步初始化及远端开关、采样意味着 `agree()` 返回不代表 ANR 收数成功。完整接入见[可选诊断 SDK](https://github.com/gycrosskit/diagnostics/blob/main/docs/可选诊断SDK.md)，真实设备验收另行判断。
+候选固定 Common `1.2.0` / analytics `1.2.12` / APM `1.5.0`，在 `core.Uma.bindContext` 中只注册 `InternalPlugin + ApmPlugin`，再等待 `core.Uma.agree()`。不用会自动加入 `SourcePlugin` 的 `analytics.preInit`。
+
+宿主通过 `DiagnosticSdkRuntime.initialize`（Kuikly 使用同一 Runtime 的 Module）调用；不要直接调用适配器绕过门禁。`privacyGranted=true` 必须表示用户已同意实际性能监控及启动/会话统计用途，旧的纯崩溃授权不能自动沿用。未同意或配置不符时 Runtime 不创建插件，同配置页面重接共享进程初始化，失败不自动重试。
+
+InternalPlugin 会发送启动/会话统计及身份、应用上下文，并非无统计的 UMID 初始化器。SDK 清单和隐私政策须披露这项用途及实际字段；`disableOAID=true` 不关闭 AAID、ODID、UMID 或会话统计。组件不请求 OAID 权限，关闭调试日志、卡顿 HiLog 和剩余磁盘采样；不提供鸿蒙远程日志回捞或独立性能接口。初始化后的撤回不具备组件级停采保证，不能把再次传入 `false` 当成卸载已注册观察器。
+
+Common `1.2.0` 仍要求应用资源 `rawfile/umconfig.json` 存在，可仅为 `{}`，AppKey/channel 继续从私有参数传入。完整接入、披露事项与撤回边界见[可选诊断 SDK](https://github.com/gycrosskit/diagnostics/blob/main/docs/可选诊断SDK.md#鸿蒙-common-与-anr)。
+
+## ANR 与验收边界
+
+2026-10-21 查询[Common 官方 Registry](https://ohpm.openharmony.cn/ohpm/@umeng/common)最新为 `1.2.0`，没有 `1.2.2`；后台 ANR“Common ≥1.2.2”提示与公开版本冲突。独立包使用上述三包组合已取得真实 native/ANR 入库及包名筛选证据，但这不代表本轮未发布 HAR 或业务宿主完成验收。
+
+`enableJSCatch=false` 不关闭 APP_FREEZE watcher。插件/worker 异步初始化、系统故障附件、远端开关和采样均影响递送；`agree()` 返回及 HTTP200 都不等于后台入库。APM-only 保留旧 UMID 后能入库，不证明首次安装身份、比率分母或告警可靠，不作为正式无统计方案。

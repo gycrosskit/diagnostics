@@ -55,10 +55,21 @@ function fixture(provider = 'bugly', overrides = {}, options = {}) {
     '@gycrosskit/sound': { SoundModule: dummyModule('Sound') },
     '@gycrosskit/media': { MediaModule: dummyModule('Media') },
     '@umeng/common': { core: { Uma: {
-      bindContext: config => calls.push(['preInit', config]),
-      agree: () => { calls.push(['umeng']); return initialized; }
+      bindContext: config => {
+        calls.push(['preInit', config]);
+        if (options.bindThrows) throw Error('bind failed');
+      },
+      agree: () => {
+        calls.push(['umeng']);
+        return options.agreeRejects ? Promise.reject(Error('agree failed')) : initialized;
+      }
     } } },
-    '@umeng/apm': { ApmPlugin: class { constructor(value) { calls.push(['apm-plugin', value]); } } }
+    '@umeng/analytics': {
+      InternalPlugin: class { constructor() { calls.push(['internal-plugin', this]); } },
+      preInit() { throw Error('analytics.preInit adds SourcePlugin'); },
+      SourcePlugin: class { constructor() { throw Error('SourcePlugin must not be installed'); } }
+    },
+    '@umeng/apm': { ApmPlugin: class { constructor(value) { calls.push(['apm-plugin', value, this]); } } }
   };
   for (const name of gyc) {
     const packageName = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
@@ -111,7 +122,9 @@ async function verify() {
   for (const setup of [fixture('none'), fixture('bugly', { appKey: '' }),
     fixture('bugly', { appId: '' }), fixture('bugly', { brandId: 'other' }),
     fixture('bugly', { environment: 'release' }), fixture('umeng', { remoteLogs: true }), fixture('bugly', { performance: true }),
-    fixture('umeng', { performance: true }), fixture('bugly', { crashes: false, remoteLogs: false })]) {
+    fixture('umeng', { performance: true }), fixture('bugly', { crashes: false, remoteLogs: false }),
+    fixture('umeng', { crashes: false, remoteLogs: false }), fixture('umeng', { appKey: '' }),
+    fixture('umeng', { brandId: 'other' }), fixture('umeng', { environment: 'release' })]) {
     await assert.rejects(setup.initialize());
     assert.equal(setup.calls.length, 0, 'invalid configuration must not construct SDK');
   }
@@ -211,16 +224,57 @@ async function verify() {
   await crashOnly.initialize();
   crashOnly.runtime.writeLog('I', 'tag', 'message');
   assert.equal(crashOnly.calls.filter(call => ['log', 'diagnose', 'i'].includes(call[0])).length, 0);
-  const umeng = fixture('umeng');
-  await umeng.initialize();
+  const umeng = fixture('umeng', {}, { delayed: true });
+  for (const privacyGranted of [undefined, false, 'true', 1]) {
+    const deniedUmeng = fixture('umeng');
+    const UmengModule = deniedUmeng.load(path.join(sdkDir, 'DiagnosticSdkModule.ets')).DiagnosticSdkModule;
+    const deniedModule = new UmengModule(deniedUmeng.context, deniedUmeng.runtime);
+    const status = await new Promise(resolve => deniedModule.call('initialize', JSON.stringify({
+      ...deliveryInput, provider: 'umeng', configuration: deniedUmeng.configuration, privacyGranted
+    }), value => resolve(value.status)));
+    assert.equal(status, 'unavailable');
+    assert.equal(deniedUmeng.calls.length, 0, 'only explicit boolean consent may install statistics and APM');
+  }
+  umeng.runtime.onForeground(); umeng.runtime.onBackground();
+  umeng.runtime.writeLog('E', 'tag', 'before-consent');
+  await assert.rejects(umeng.initialize(false));
+  assert.equal(umeng.calls.length, 0, 'privacy denial must not construct either plugin or call Common');
+  const pendingUmeng = umeng.initialize();
+  assert.equal(umeng.initialize(), pendingUmeng, 'concurrent callers must share the initialization');
+  let umengReady = false;
+  pendingUmeng.then(() => { umengReady = true; });
+  await Promise.resolve();
+  assert.equal(umengReady, false, 'must wait for Common agree');
+  assert.deepEqual(umeng.calls.map(call => call[0]),
+    ['factory', 'internal-plugin', 'apm-plugin', 'preInit', 'umeng']);
+  const umengBinding = umeng.calls.find(call => call[0] === 'preInit')[1];
+  assert.equal(umengBinding.context, 'application');
+  assert.equal(umengBinding.appKey, 'client-key');
+  assert.equal(umengBinding.channel, 'test');
+  assert.equal(umengBinding.enableLog, false);
+  assert.equal(umengBinding.plugins[0], umeng.calls.find(call => call[0] === 'internal-plugin')[1]);
+  assert.equal(umengBinding.plugins[1], umeng.calls.find(call => call[0] === 'apm-plugin')[2]);
+  umeng.release();
+  await pendingUmeng;
   await umeng.initialize();
   assert.equal(umeng.calls.filter(call => call[0] === 'umeng').length, 1);
+  assert.equal(umeng.calls.filter(call => call[0] === 'internal-plugin').length, 1);
   assert.equal(umeng.calls.find(call => call[0] === 'apm-plugin')[1].enableJSCatch, false);
   assert.equal(umeng.calls.find(call => call[0] === 'preInit')[1].disableOAID, true);
-  assert.equal(umeng.calls.find(call => call[0] === 'preInit')[1].plugins.length, 1);
+  assert.equal(umengBinding.plugins.length, 2, 'only InternalPlugin and ApmPlugin; no SourcePlugin');
   assert.equal(umeng.calls.find(call => call[0] === 'apm-plugin')[1].disableDiskFreeSize, true);
+  assert.equal(umeng.calls.find(call => call[0] === 'apm-plugin')[1].collectBlockHiLog, false);
   umeng.runtime.writeLog('E', 'tag', 'ordinary log');
   assert.equal(umeng.calls.filter(call => call[0] === 'umeng').length, 1, 'ordinary logs must not become custom crash reports');
+
+  for (const options of [{ bindThrows: true }, { agreeRejects: true }]) {
+    const failedUmeng = fixture('umeng', {}, options);
+    await assert.rejects(failedUmeng.initialize(), /failed/);
+    await assert.rejects(failedUmeng.initialize(), /failed/);
+    assert.equal(failedUmeng.calls.filter(call => call[0] === 'internal-plugin').length, 1,
+      'failed initialization must not install statistics observers again');
+    assert.equal(failedUmeng.calls.filter(call => call[0] === 'preInit').length, 1);
+  }
 
   const delayed = fixture('bugly', {}, { delayed: true });
   const Module = delayed.load(path.join(sdkDir, 'DiagnosticSdkModule.ets')).DiagnosticSdkModule;

@@ -8,6 +8,7 @@
   "dependencies": {
     "@gycrosskit/diagnostics-core": "0.2.0-rc.16",
     "@umeng/common": "1.2.0",
+    "@umeng/analytics": "1.2.12",
     "@umeng/apm": "1.5.0"
   },
   "author": {

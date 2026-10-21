@@ -150,7 +150,7 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
             assert '-Dorg.gradle.internal.http.socketTimeout=60000' in args
             assert '--no-daemon' in args and '--max-workers=1' in args
             assert [arg for arg in args if arg.startswith(':')] == [':diagnostics-core:transformCommonMainDependenciesMetadata']
-            assert not any('max.tentatives' in arg for arg in args), 'Preserve native Gradle recovery'
+            assert [arg for arg in args if 'max.tentatives' in arg] == ['-Dorg.gradle.internal.repository.max.tentatives=1'], 'Only metadata outer recovery owns retries'
             logs.append(args[args.index('--log') + 1])
         assert len(set(logs)) == count, 'Preserve each attempt separately'
         assert (len(probe_calls.read_text().splitlines()) if probe_calls.exists() else 0) == probes

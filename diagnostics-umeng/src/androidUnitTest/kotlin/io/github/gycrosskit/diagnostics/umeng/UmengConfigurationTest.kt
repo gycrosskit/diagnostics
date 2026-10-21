@@ -32,6 +32,9 @@ class UmengConfigurationTest {
     fun `brand and build environment use searchable dimensions after SDK initialization`() = runBlocking<Unit> {
         for ((brand, environment) in listOf("chonghe" to "qa", "hehekang" to "release")) {
             InitializationShadow.started = false
+            InitializationShadow.contextReady = false
+            InitializationShadow.senderHasContext = false
+            InitializationShadow.calls.clear()
             CustomMappingShadow.values.clear()
             UmengDiagnosticSdkBridge(RuntimeEnvironment.getApplication()).initialize(
                 DiagnosticSdkConfiguration(DiagnosticSdkProvider.UMENG, appKey = "test-key",
@@ -39,6 +42,7 @@ class UmengConfigurationTest {
                 "installation-id", "1.2.3", "42",
             )
             assertTrue(InitializationShadow.started)
+            assertEquals(listOf("preInit", "consent:true", "init"), InitializationShadow.calls)
             assertEquals(mapOf("s1" to brand, "s2" to environment), CustomMappingShadow.values)
         }
     }
@@ -48,6 +52,9 @@ class UmengConfigurationTest {
     class InitializationShadow {
         companion object {
             var started = false
+            var contextReady = false
+            var senderHasContext = false
+            val calls = mutableListOf<String>()
 
             @JvmStatic
             @Implementation
@@ -55,7 +62,25 @@ class UmengConfigurationTest {
 
             @JvmStatic
             @Implementation
+            fun submitPolicyGrantResult(context: Context, granted: Boolean) {
+                // Common 在授权调用中创建 sender，首次捕获的上下文必须已经存在。
+                senderHasContext = contextReady
+                check(senderHasContext) { "policy sender initialized before preInit context" }
+                calls += "consent:$granted"
+            }
+
+            @JvmStatic
+            @Implementation
+            fun preInit(context: Context, appKey: String, channel: String) {
+                contextReady = true
+                calls += "preInit"
+            }
+
+            @JvmStatic
+            @Implementation
             fun init(context: Context, appKey: String, channel: String, deviceType: Int, pushSecret: String?) {
+                check(senderHasContext)
+                calls += "init"
                 started = true
             }
         }

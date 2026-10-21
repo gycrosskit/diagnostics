@@ -209,10 +209,11 @@ jobs:
         timeout-minutes: 8
         run: |
           SOURCE_R8_VERSION="source-r8-${GITHUB_SHA}"
+          # Gradle 默认每个文件内重试 3 次；此准备任务由下方严格外层恢复，避免先耗尽 8 分钟总界。
           for attempt in 1 2 3; do
             log="ci-diagnostics/source-r8-metadata-$attempt.log"
             # 仓库 HTTP 使用 Apache；URLConnection 的 sun.net.client 参数不覆盖此连接限时。
-            if VERSION="$SOURCE_R8_VERSION" python3 scripts/ci-run.py --no-progress-seconds 300 --log "$log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:transformCommonMainDependenciesMetadata -Dorg.gradle.internal.http.connectionTimeout=10000 -Dorg.gradle.internal.http.socketTimeout=60000 --no-daemon --max-workers=1; then
+            if VERSION="$SOURCE_R8_VERSION" python3 scripts/ci-run.py --no-progress-seconds 300 --log "$log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:transformCommonMainDependenciesMetadata -Dorg.gradle.internal.repository.max.tentatives=1 -Dorg.gradle.internal.http.connectionTimeout=10000 -Dorg.gradle.internal.http.socketTimeout=60000 --no-daemon --max-workers=1; then
               break
             else
               resolve_status=$?

@@ -25,6 +25,8 @@ class UmengDiagnosticSdkBridge(private val context: Context) : DiagnosticSdkBrid
         if (configuration.performance) throw UnsupportedOperationException("友盟性能采集尚未接入")
         if (!configuration.crashes && !configuration.remoteLogs) return
         require(configuration.appKey.isNotBlank()) { "友盟缺少 appKey" }
+        // Common 的 policy 调用会创建 sender；先在真实隐私准入内准备其上下文。
+        UMConfigure.preInit(context.applicationContext, configuration.appKey, configuration.channel)
         UMConfigure.setLogEnabled(false)
         MobclickAgent.setCatchUncaughtExceptions(false)
         MobclickAgent.disable()
@@ -35,7 +37,8 @@ class UmengDiagnosticSdkBridge(private val context: Context) : DiagnosticSdkBrid
         ULogManager.setDeviceID(deviceId.take(128))
         UMCrash.initConfig(crashOnlyUmengConfiguration(configuration, deviceId))
         UMCrash.setAppVersion(versionName, configuration.environment, buildNumber)
-        UMConfigure.preInit(context.applicationContext, configuration.appKey, configuration.channel)
+        // 已有宿主授权准入不变；Common 在完整初始化前同步授权结果。
+        UMConfigure.submitPolicyGrantResult(context.applicationContext, true)
         UMConfigure.init(context.applicationContext, configuration.appKey, configuration.channel,
             UMConfigure.DEVICE_TYPE_PHONE, null)
         // 可检索维度须在 SDK 初始化后设置；channel 继续表示分发渠道。

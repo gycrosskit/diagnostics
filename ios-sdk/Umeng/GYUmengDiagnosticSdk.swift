@@ -31,6 +31,7 @@ public final class GYUmengDiagnosticSdk: GYDiagnosticSdkAdapter {
         UMCrashConfigure.setAppVersion(versionName, buildVersion: buildNumber)
         UMConfigure.setLogEnabled(false)
         UMConfigure.setAnalyticsEnabled(false)
+        UMConfigure.setASAEnabled(false)
         if configuration.crashes { beforeStart() }
         initialized = true
         remoteLogs = configuration.remoteLogs
