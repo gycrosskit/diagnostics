@@ -36,7 +36,7 @@ assert '--init-script "$PWD/scripts/ci-repositories.gradle"' in archive
 print('CI cache contract: source-only cache and real test execution policy')
 
 # 执行真实 R8 shell 步骤，用记录器替代编译命令，验证同 SHA 共享坐标、不同 SHA 隔离。
-r8_step = jobs['android'].split('      - name: Verify Android R8 from source staging publications\n', 1)[1].split('      - name:', 1)[0]
+r8_step = jobs['native'].split('      - name: Verify Android R8 from source staging publications\n', 1)[1].split('      - name:', 1)[0]
 commands = r8_step.split('        run: |\n', 1)[1]
 commands = '\n'.join(line[10:] for line in commands.splitlines())
 with tempfile.TemporaryDirectory() as directory:
@@ -72,9 +72,17 @@ if provider and "-PdiagnosticsProvider=" + provider in sys.argv:
     attempted = [json.loads(line) for line in failed_calls.read_text().splitlines()]
     assert len(attempted) == 3, 'Failed consumer must stop without retry or continuing to Umeng'
 print('Source R8 contract: per-SHA publication identity and three consumers without repeated refresh')
+assert 'Resolve source metadata with bounded connection recovery' not in jobs['android']
+assert 'Verify Android R8 from source staging publications' not in jobs['android']
+assert jobs['native'].index(':diagnostics-core:compileKotlinIosArm64') < jobs['native'].index('Resolve source metadata with bounded connection recovery')
+assert 'test -f "$ANDROID_HOME/platforms/android-36/android.jar"' in jobs['native']
+assert jobs['native'].index('pod --check-only') < jobs['native'].index(':diagnostics-core:compileKotlinIosArm64')
+assert 'node --test verification/ohos-sdk.cjs' in jobs['android']
+assert 'testDebugUnitTest' in jobs['android'] and 'assert-test-results.py' in jobs['android']
+
 
 # 只恢复 metadata 下载连接，不把编译失败或旧日志中的超时当成重试依据。
-resolve_step = jobs['android'].split('      - name: Resolve source metadata with bounded connection recovery\n', 1)[1].split('      - name:', 1)[0]
+resolve_step = jobs['native'].split('      - name: Resolve source metadata with bounded connection recovery\n', 1)[1].split('      - name:', 1)[0]
 resolve_commands = resolve_step.split('        run: |\n', 1)[1]
 resolve_commands = '\n'.join(line[10:] for line in resolve_commands.splitlines())
 with tempfile.TemporaryDirectory() as directory:
@@ -155,3 +163,30 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
         assert len(set(logs)) == count, 'Preserve each attempt separately'
         assert (len(probe_calls.read_text().splitlines()) if probe_calls.exists() else 0) == probes
 print('Metadata recovery: 11 cases; bounded exact-host TCP retries, no compilation/test retry')
+
+# 从 main 验旧版本仍执行原消费者；新四 Pod 验证只适用于 rc.19 及后续。
+tagged_step = jobs['release-native'].split('      - name: Verify exact tagged iOS native consumers\n', 1)[1].split('      - name:', 1)[0]
+tagged_commands = tagged_step.split('        run: |\n', 1)[1]
+tagged_commands = '\n'.join(line[10:] for line in tagged_commands.splitlines())
+with tempfile.TemporaryDirectory() as directory:
+    temporary = Path(directory)
+    recorder = temporary / 'python3'
+    recorder.write_text('#!' + sys.executable + '\n' + r'''import json, os, sys
+with open(os.environ['TAGGED_CALLS'], 'a') as output:
+    output.write(json.dumps(sys.argv[1:]) + '\n')
+''')
+    recorder.chmod(0o700)
+    legacy = ['0.1.0', *[f'0.2.0-rc.{version}' for version in range(1, 19)]]
+    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0']:
+        calls = temporary / (version + '.jsonl')
+        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', tagged_commands], cwd=ROOT,
+                                env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
+                                     'VERSION': version, 'TAGGED_CALLS': str(calls)},
+                                capture_output=True, text=True)
+        assert result.returncode == 0, (version, result.stdout, result.stderr)
+        invocations = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
+        if version in legacy:
+            assert not invocations and 'skipped for ' + version in result.stdout, version
+        else:
+            assert len(invocations) == 1 and invocations[0][-3:] == ['env', 'RUBYOPT=-r' + str(ROOT / 'scripts/verify-tagged-ios-sdk.rb'), 'pod'], version
+print('Tagged iOS release gate: legacy skips; installed pod launcher preloads exact verifier')

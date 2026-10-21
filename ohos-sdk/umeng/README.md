@@ -2,10 +2,10 @@
 
 提供可选的友盟诊断适配器，依赖同版本 diagnostics-core。
 
-**当前源码含未发布的 InternalPlugin 接入修复。下面的已发布 rc.16 坐标不含该修复；本轮不更新版本或发布归档。**
+**rc.19 源码包含 InternalPlugin 接入修复；旧 rc.16 不含该修复。** 安装前核验 Registry 中的精确版本；未上架时仅按 Release 摘要消费 HAR，不能把提交审核当成上架。
 
 ```bash
-ohpm install @gycrosskit/diagnostics-umeng@0.2.0-rc.16
+ohpm install @gycrosskit/diagnostics-umeng@0.2.0-rc.19
 ```
 
 由宿主显式选择供应商并传入配置，组件不依赖业务宿主。安装库不代表已完成设备、供应商服务或上报验收。
@@ -16,7 +16,7 @@ ohpm install @gycrosskit/diagnostics-umeng@0.2.0-rc.16
 
 ## 初始化与隐私同意
 
-候选固定 Common `1.2.0` / analytics `1.2.12` / APM `1.5.0`，在 `core.Uma.bindContext` 中只注册 `InternalPlugin + ApmPlugin`，再等待 `core.Uma.agree()`。不用会自动加入 `SourcePlugin` 的 `analytics.preInit`。
+rc.19 固定 Common `1.2.0` / analytics `1.2.12` / APM `1.5.0`，在 `core.Uma.bindContext` 中只注册 `InternalPlugin + ApmPlugin`，再等待 `core.Uma.agree()`。不用会自动加入 `SourcePlugin` 的 `analytics.preInit`。
 
 宿主通过 `DiagnosticSdkRuntime.initialize`（Kuikly 使用同一 Runtime 的 Module）调用；不要直接调用适配器绕过门禁。`privacyGranted=true` 必须表示用户已同意实际性能监控及启动/会话统计用途，旧的纯崩溃授权不能自动沿用。未同意或配置不符时 Runtime 不创建插件，同配置页面重接共享进程初始化，失败不自动重试。
 
@@ -26,6 +26,8 @@ Common `1.2.0` 仍要求应用资源 `rawfile/umconfig.json` 存在，可仅为 
 
 ## ANR 与验收边界
 
-2026-10-21 查询[Common 官方 Registry](https://ohpm.openharmony.cn/ohpm/@umeng/common)最新为 `1.2.0`，没有 `1.2.2`；后台 ANR“Common ≥1.2.2”提示与公开版本冲突。独立包使用上述三包组合已取得真实 native/ANR 入库及包名筛选证据，但这不代表本轮未发布 HAR 或业务宿主完成验收。
+2026-10-21 查询[Common 官方 Registry](https://ohpm.openharmony.cn/ohpm/@umeng/common)最新为 `1.2.0`，没有 `1.2.2`；后台 ANR“Common ≥1.2.2”提示与公开版本冲突。独立包使用上述三包组合已取得真实 native/ANR 入库及包名筛选证据，该独立包证据与 rc.19 的公开消费、业务宿主验收分别记录。
 
 `enableJSCatch=false` 不关闭 APP_FREEZE watcher。插件/worker 异步初始化、系统故障附件、远端开关和采样均影响递送；`agree()` 返回及 HTTP200 都不等于后台入库。APM-only 保留旧 UMID 后能入库，不证明首次安装身份、比率分母或告警可靠，不作为正式无统计方案。
+
+构建要求：HarmonyOS 6.0.2 / API22，`targetSdkVersion` 与 `compatibleSdkVersion` 均为 `6.0.2(22)`；真实编译工具版本与源码摘要见对应 Release 的 HAR provenance。
