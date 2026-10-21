@@ -2,7 +2,7 @@
 
 本库提供 Core、可选网络/通知及 Bugly / 友盟适配，原生宿主和 Kuikly 复用公开能力。三端入口、公开功能组和设备验收边界见[功能与平台差异](docs/功能与平台差异.md)。
 
-**本轮配套版本：Maven / iOS Git Pods `0.2.0-rc.17`，OHOS HAR / OHPM 保持 `0.2.0-rc.16`。** rc.17 补齐 Android / iOS 友盟可检索维度 `s1=brandId`、`s2=environment`；iOS 原生配置新增默认空字段，宿主仅做透传。默认 `none` 不引入供应商 SDK。归档、公开坐标和独立消费者分别验收，可用性以[rc.17 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.17)与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)为准。
+**本轮配套版本：Maven `0.2.0-rc.18`，iOS Git Pods 保持 `0.2.0-rc.17`，OHOS HAR / OHPM 保持 `0.2.0-rc.16`。** rc.18 补齐 Ktor 请求日志的有效 `Content-Type`，新增 `HttpResponse.recordDiagnosticsBody(bytes)`，供宿主完整消费流式响应后补记正文；采集仍受准入、文本类型、额度与脱敏策略约束。本版没有原生 SDK 改动，沿用 rc.17 的友盟品牌／环境维度；默认 `none` 不引入供应商 SDK。归档、公开坐标和独立消费者分别验收，可用性以[rc.18 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.18)与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)为准。
 
 rc.17 同时包含 Swift 直接消费快照的 `DiagnosticReadSnapshot.closeWithError()`，通过 NSError 返回关闭失败；Kotlin 继续使用 `use`，见[快照接入](docs/机制接入.md#原子只读-reader-快照rc12)。旧 rc.16 不含此入口和本次友盟维度；旧标签与归档不覆盖。
 
@@ -14,7 +14,7 @@ rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037
 
 历史版本 **0.2.0-rc.12** 首次增加原子只读快照、轮转安全的 ZIP/文本导出，以及 iOS/OHOS 有界 Throwable 格式化；用法见 [机制接入](docs/机制接入.md)。可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和通知模块与当前 Maven 保持同版；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。rc.12 原有 Swift Package / Git Pod 配套 **0.2.0-rc.1**。rc.13 新增原生适配 Pod 和纯 ArkTS HAR；Maven rc.14/rc.15 补齐 Android 供应商依赖和 Main dispatcher；详见[可选诊断 SDK](docs/可选诊断SDK.md)。
 
-正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.17) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
+正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.18) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
 
 ## 支持范围
 
@@ -113,7 +113,7 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.17")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.18")
 ```
 
 系统采集独立启用。iOS 原生包用精确 Git tag `0.2.0-rc.17` 下 `Package.swift` 的 `GYDiagnosticsNative` product，或同 tag 的 Git Pod；所有 diagnostics Pods 使用同一个 Git source/tag。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
