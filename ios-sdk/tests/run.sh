@@ -24,13 +24,14 @@ for provider in bugly umeng; do
       -Xlinker -rpath -Xlinker "${TEST_DIR}" "${ROOT}/ios-sdk/tests/NativeSdkTestMain.swift" -o "${TEST_DIR}/tests"
     for mode in bugly-crash-only bugly-both bugly-log-only bugly-log-failure bugly-disabled bugly-performance bugly-invalid; do "${TEST_DIR}/tests" "${mode}"; done
   else
-    for name in UMCommon UMAPMHeadersStub; do module "${name}" "${ROOT}/ios-sdk/tests/Stubs/${name}.swift"; done
+    module UMCommon "${ROOT}/ios-sdk/tests/Stubs/UMCommon.swift"
+    module UMAPMHeadersStub "${ROOT}/ios-sdk/tests/Stubs/UMAPMHeadersStub.swift" -lUMCommon
     module GYDiagnosticsProvider "${ROOT}/ios-sdk/Umeng/GYUmengDiagnosticSdk.swift" \
       "${ROOT}/ios-sdk/Umeng/GYDiagnosticSdkProviderFactory.swift" -D GY_DIAGNOSTICS_TEST_STUBS -lGYDiagnosticsSdk -lUMCommon -lUMAPMHeadersStub
     xcrun swiftc -parse-as-library -module-cache-path "${TEST_DIR}/module-cache" -I "${TEST_DIR}" -L "${TEST_DIR}" \
       -lGYDiagnosticsSdk -lGYDiagnosticsProvider -lUMCommon -lUMAPMHeadersStub \
       -Xlinker -rpath -Xlinker "${TEST_DIR}" "${ROOT}/ios-sdk/tests/NativeSdkTestMain.swift" -o "${TEST_DIR}/tests"
-    for mode in umeng umeng-logs umeng-log-only umeng-disabled umeng-performance umeng-invalid; do "${TEST_DIR}/tests" "${mode}"; done
+    for mode in umeng umeng-other-brand umeng-legacy umeng-logs umeng-log-only umeng-disabled umeng-performance umeng-invalid; do "${TEST_DIR}/tests" "${mode}"; done
   fi
 done
 echo "iOS native diagnostic SDK tests passed."

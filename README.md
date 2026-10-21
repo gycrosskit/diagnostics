@@ -6,6 +6,8 @@
 
 当前源码补丁为 Swift 直接消费快照补充 `DiagnosticReadSnapshot.closeWithError()`，通过 NSError 返回关闭失败；Kotlin 继续使用 `use`。该入口尚未包含在已发布 rc.16 中，见[快照接入](docs/机制接入.md#原子只读-reader-快照rc12)。
 
+**本轮未发布源码**：友盟 Android / iOS 将 `brandId`、`environment` 写入可检索维度 `s1`、`s2`；iOS 原生配置新增同名默认空字段，宿主薄桥须透传。此能力尚未进入上面的 Maven / Git Pod 坐标，不能将源码验证视为已发布消费。鸿蒙保留 Common `1.2.0` / APM `1.5.0`；包名筛选与 ANR 静态链路、实际收数边界见[可选诊断 SDK](docs/可选诊断SDK.md#友盟品牌与环境维度本轮未发布)。
+
 rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037fa2b31864622706b60`）：`diagnostics-ktor` 增加 `DiagnosticStore.openFileChannel`，由宿主上传 scope 持有，有界读取并提供 EOF/close 屏障；此 API 首次进入 rc.11；发布与远程消费状态以精确 Release 和门禁回执为准。接线和验证范围见[逐文件上传](docs/接入指南.md#ktor-流式桥接rc11)。
 
 应用私有滚动日志、诊断报告、稳定批次逐文件读取及可重试 TAR 导出。组件负责本地有界存储，宿主负责隐私准入、脱敏、后台调度、分享或上传。
