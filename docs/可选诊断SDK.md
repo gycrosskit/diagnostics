@@ -45,6 +45,8 @@ rc.16 的 OHOS 配置补丁扩展现有 `initialize` 请求：Kotlin 透传完�
 
 ## 友盟品牌与环境维度（rc.17）
 
+启用前，宿主隐私政策及第三方 SDK 清单应披露友盟 U-APM 的实际用途、数据类型与供应商隐私政策；仅传入合成验收日志，品牌/环境字段不应包含账号或其他用户信息。厂商接口调用与开关检查不等于合规审查通过；实际采集、撤回授权及控制台能力须另验收。
+
 Android APM `2.1.0` 在 `UMConfigure.init` 返回后通过 `UAPMCustomMapping` 写入 `s1=brandId`、`s2=environment`。
 iOS UMAPM `2.0.7` 在 `UMConfigure.initWithAppkey` 返回后通过 `UMAPMCustomData` 的 `.key1` / `.key2` 写入同一约定，再调用 `UMCrashConfigure.update`；组件公开头补充 `UMAPMCustomData.h`。
 `GYDiagnosticSdkConfiguration` 新增默认空的 `brandId` / `environment`，保留旧 Swift 调用的源码兼容；宿主只把已校验的 KMP 同名字段透传，不调用友盟 API。
@@ -58,12 +60,28 @@ iOS UMAPM `2.0.7` 在 `UMConfigure.initWithAppkey` 返回后通过 `UMAPMCustomD
 
 ### 鸿蒙 Common 与 ANR
 
-保留 `@umeng/common:1.2.0` / `@umeng/apm:1.5.0`。2026-10-20 核对[官方集成文档](https://devs.umeng.com/docs/193624/detail/2835970)要求 Common ≥ `1.1.1`；[官方 Common Registry](https://ohpm.openharmony.cn/ohpm/@umeng/common)不存在 `1.2.2`，该版本号存在于独立的 [analytics 包](https://ohpm.openharmony.cn/ohpm/@umeng/analytics)。后台 ANR 提示“Common ≥1.2.2”与此冲突，不能据此升级或引入 analytics；其文案来源未获官方解释。
+Common `1.2.0` 的 `Uma.bindContext` 在使用传入参数前仍读取应用资源 `rawfile/umconfig.json`；缺失时内部捕获异常并返回，`agree()` 返回不代表插件已安装。使用本版公开 HAR 的应用须提供此资源，可仅含 `{}`，AppKey/channel 继续从私有参数传入。资源存在、初始化回执、系统异常事件及云端收数须分别核对。
+
+**当前未发布鸿蒙候选**固定 `@umeng/common:1.2.0` / `@umeng/analytics:1.2.12` / `@umeng/apm:1.5.0`。按[官方集成方案](https://devs.umeng.com/docs/193624/detail/2835970)补齐 `InternalPlugin + ApmPlugin`；Common 发布包明确要求配合 analytics 使用。仍用 `core.Uma.bindContext → core.Uma.agree`，不调用会自动加入 `SourcePlugin` 的 `analytics.preInit`。已发布 rc.16 HAR 只有 APM 插件，不含此修复。
+
+2026-10-21 查询[Common 官方 Registry](https://ohpm.openharmony.cn/ohpm/@umeng/common)最新为 `1.2.0`，不存在 `1.2.2`；该历史版本号存在于独立的 [analytics 包](https://ohpm.openharmony.cn/ohpm/@umeng/analytics)。后台 ANR 提示“Common ≥1.2.2”与公开信息及独立包 Common1.2.0 的真实入库冲突，不能据此升级未发布版本，也不能猜测提示所指包名；通用最低版本仍待官方澄清。
 实际 HAR 的静态调用链是 `Uma.agree → ApmPlugin.agree → worker → LogBuilder.initialize → watchdog → hiAppEvent.addWatcher(APP_FREEZE) → AppFreezeHandler.handleAppFreeze`。
-当前仅注册 `ApmPlugin`，不依赖 analytics / `SourcePlugin`；`enableJSCatch=false` 不关闭 APP_FREEZE watcher。`agree` 会捕获插件异常，worker 初始化又是异步的，ANR 还受远端开关/采样控制，因此完成 Promise 不等于已验收 ANR。
+`enableJSCatch=false` 不关闭 APP_FREEZE watcher。`agree` 会捕获插件异常，worker 初始化又是异步的；系统故障附件、远端开关/采样仍影响收数，因此完成 Promise 或 HTTP200 不等于已验收 ANR。
+
+独立合成验收包的上述三包组合已取得 native、完整 ANR 故障日志的真实入库及包名筛选证据；APM-only 在保留同一 UMID 后也能入库，但不证明首次安装身份初始化、启动/活跃计数、比率分母或告警可靠。初次 APM-only 未入库最有证据支持的候选原因是缺少身份/统计初始化链路，不能断言 UMID 为空是唯一服务端拒绝条件。此设备对照不是本轮源码候选的 HAR、远程 CI 或业务宿主验收。
+
+#### 鸿蒙隐私准入
+
+组件继续复用 `DiagnosticSdkRuntime.initialize(..., privacyGranted, ...)`，Module 只接受显式布尔 `true`；在验证授权、品牌/环境、安装 provider 与能力之前不调用工厂或创建插件。授权后才注册 InternalPlugin/APM、等待 `agree()`；同配置复用进程 Promise，失败不自动重试。不新增第二套授权状态，也不由组件替用户同意。适配器的 `initialize` 属于门禁后的厂商边界，宿主须经 Runtime/Module 调用，不能直接调用它绕过准入。
+
+`privacyGranted` 由宿主保证已覆盖**性能监控与 App 数据统计分析（启动/会话统计）**；旧纯崩溃授权不能自动等同新增统计用途。升级前应同步第三方 SDK 清单及隐私政策，披露接收方、实际用途/字段和[APM 鸿蒙隐私指南](https://devs.umeng.com/docs/147377/detail/2847371)、[统计鸿蒙隐私指南](https://devs.umeng.com/docs/147377/detail/2773230)的供应商说明，再向 Runtime 提供用户真实的同意结果；本轮不修改业务政策或宿主接线。
+
+InternalPlugin 是 AnaPlugin 的公开别名，会发送启动、session ID、会话起止及身份/应用上下文，不是仅申请 UMID 的无统计插件。APM 与统计共享部分设备标识和网络字段，不把所有字段笼统说成新增。`disableOAID=true` 不关闭 AAID、ODID、UMID 或会话统计；组件不请求 `APP_TRACKING_CONSENT`，关闭 SDK 调试日志、卡顿 HiLog 与剩余磁盘采样，但不承诺无标识或无统计。`performance=false` 仍只表示本期不接独立性能接口，不能解释成关闭上述统计或 SDK 自带崩溃上下文采样。
+
+当前 Runtime 只提供初始化准入，不提供已初始化后的组件级停采/撤回 API。再次传入 `privacyGranted=false` 会拒绝该次初始化，但不能撤销此前已安装的观察器。宿主必须单独设计并验证撤回后的真实停采、持久化与后续进程禁用；未验证前不能宣称支持立即撤回停采。本轮不扩大公共 API 或改业务宿主。
 
 鸿蒙后台崩溃及 ANR 页面均有 App 包名筛选，业务品牌可在独立 `bundleName` 前提下候选映射；共用技术宿主包名的品牌不能仅靠包名区分。
-本轮不改包名、后台或依赖；没有真实多包收数，不能承诺包名筛选同时隔离比率分母或告警。鸿蒙仍须 `remoteLogs=false`、`performance=false`。
+本轮只改组件候选的 analytics 依赖和接线，不改业务包名、后台或已发布制品；没有真实多品牌包收数，不能承诺包名筛选同时隔离比率分母或告警。鸿蒙仍须 `remoteLogs=false`、`performance=false`。
 
 ## 最小进程接线
 
