@@ -155,3 +155,33 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
         assert len(set(logs)) == count, 'Preserve each attempt separately'
         assert (len(probe_calls.read_text().splitlines()) if probe_calls.exists() else 0) == probes
 print('Metadata recovery: 11 cases; bounded exact-host TCP retries, no compilation/test retry')
+
+# 从 main 验旧版本仍执行原消费者；新四 Pod 验证只适用于 rc.19 及后续。
+tagged_step = jobs['release-native'].split('      - name: Verify exact tagged iOS Pod consumers\n', 1)[1].split('      - name:', 1)[0]
+tagged_commands = tagged_step.split('        run: |\n', 1)[1]
+tagged_commands = '\n'.join(line[10:] for line in tagged_commands.splitlines())
+with tempfile.TemporaryDirectory() as directory:
+    temporary = Path(directory)
+    recorder = temporary / 'python3'
+    recorder.write_text('#!' + sys.executable + '\n' + r'''import json, os, sys
+with open(os.environ['TAGGED_CALLS'], 'a') as output:
+    output.write(json.dumps(sys.argv[1:]) + '\n')
+''')
+    recorder.chmod(0o700)
+    brew = temporary / 'brew'
+    brew.write_text('#!' + sys.executable + '\n' + "import sys\nassert sys.argv[1:] == ['--prefix']\nprint('/ci/brew')\n")
+    brew.chmod(0o700)
+    legacy = ['0.1.0', *[f'0.2.0-rc.{version}' for version in range(1, 19)]]
+    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0']:
+        calls = temporary / (version + '.jsonl')
+        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', tagged_commands], cwd=ROOT,
+                                env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
+                                     'VERSION': version, 'TAGGED_CALLS': str(calls)},
+                                capture_output=True, text=True)
+        assert result.returncode == 0, (version, result.stdout, result.stderr)
+        invocations = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
+        if version in legacy:
+            assert not invocations and 'skipped for ' + version in result.stdout, version
+        else:
+            assert len(invocations) == 1 and invocations[0][-4:] == ['env', 'GEM_HOME=/ci/brew/opt/cocoapods/libexec', '/ci/brew/opt/ruby/bin/ruby', 'scripts/verify-tagged-ios-sdk.rb'], version
+print('Tagged iOS release gate: 19 legacy versions skip only new helper; rc19/rc20/stable invoke exact consumer')

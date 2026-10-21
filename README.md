@@ -2,13 +2,13 @@
 
 本库提供 Core、可选网络/通知及 Bugly / 友盟适配，原生宿主和 Kuikly 复用公开能力。三端入口、公开功能组和设备验收边界见[功能与平台差异](docs/功能与平台差异.md)。
 
-**本轮配套版本：Maven `0.2.0-rc.18`，iOS Git Pods 保持 `0.2.0-rc.17`，OHOS HAR / OHPM 保持 `0.2.0-rc.16`。** rc.18 补齐 Ktor 请求日志的有效 `Content-Type`，新增 `HttpResponse.recordDiagnosticsBody(bytes)`，供宿主完整消费流式响应后补记正文；采集仍受准入、文本类型、额度与脱敏策略约束。本版没有原生 SDK 改动，沿用 rc.17 的友盟品牌／环境维度；默认 `none` 不引入供应商 SDK。归档、公开坐标和独立消费者分别验收，可用性以[rc.18 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.18)与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)为准。
+**本轮配套版本：Maven / iOS Git Pods / OHOS HAR `0.2.0-rc.19`。** rc.19 包含 Android 友盟初始化顺序、iOS ASA 关闭与 OHOS InternalPlugin 修复，并保留 rc.18 的 Ktor 有效 `Content-Type` 和 `HttpResponse.recordDiagnosticsBody(bytes)`。默认 `none` 不引入供应商 SDK；真实品牌/环境维度与隐私准入合同保持不变。各渠道可用性须分别核对 [rc.19 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)。
 
 rc.17 同时包含 Swift 直接消费快照的 `DiagnosticReadSnapshot.closeWithError()`，通过 NSError 返回关闭失败；Kotlin 继续使用 `use`，见[快照接入](docs/机制接入.md#原子只读-reader-快照rc12)。旧 rc.16 不含此入口和本次友盟维度；旧标签与归档不覆盖。
 
-已发布 OHOS rc.16 HAR 固定 Common `1.2.0` / APM `1.5.0`，不含本轮修复。当前未发布鸿蒙候选增加 analytics `1.2.12` 的 `InternalPlugin`，通过 Common 公共入口与 APM 一起初始化，避开 `SourcePlugin`；仅在宿主授予覆盖性能监控与启动/会话统计的隐私同意后启用。实际披露、同意门禁及包名/ANR边界见[鸿蒙接入合同](docs/可选诊断SDK.md#鸿蒙-common-与-anr)。内建包名筛选不等于品牌独立比率或告警；本轮不改业务宿主、后台或发布版本。
+rc.19 OHOS 固定 Common `1.2.0` / analytics `1.2.12` / APM `1.5.0`，由 Common 公共入口注册 `InternalPlugin + ApmPlugin`，避开 `SourcePlugin`；仅在宿主同意性能监控及启动/会话统计用途后启用。API22 构建配置与真实 SDK 对齐；工具版本、源码及同轮 Core HAR 消费摘要随 Release 留存。披露、资源与 ANR 边界见[鸿蒙接入合同](docs/可选诊断SDK.md#鸿蒙-common-与-anr)。包名筛选不等于品牌独立比率或告警。
 
-当前未发布候选同时包含友盟隐私补丁：Android 在真实授权准入内先 `preInit` 准备 Common 上下文，再同步已获授权结果并 `init`，iOS 在初始化前关闭 ASA token 采集；详见同节。上述 rc.17 发布物不含此补丁。
+rc.19 的 Android 适配在真实授权准入内先 `preInit` 准备 Common 上下文，再同步授权并 `init`；iOS 在初始化前关闭 ASA token 采集。旧 Maven rc.18 / iOS Pods rc.17 / OHOS HAR rc.16 不含这些补丁，标签与归档保持不变。源码测试、内部真机证据和新版本公开消费分别验收。
 
 rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037fa2b31864622706b60`）：`diagnostics-ktor` 增加 `DiagnosticStore.openFileChannel`，由宿主上传 scope 持有，有界读取并提供 EOF/close 屏障；此 API 首次进入 rc.11；发布与远程消费状态以精确 Release 和门禁回执为准。接线和验证范围见[逐文件上传](docs/接入指南.md#ktor-流式桥接rc11)。
 
@@ -16,7 +16,7 @@ rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037
 
 历史版本 **0.2.0-rc.12** 首次增加原子只读快照、轮转安全的 ZIP/文本导出，以及 iOS/OHOS 有界 Throwable 格式化；用法见 [机制接入](docs/机制接入.md)。可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和通知模块与当前 Maven 保持同版；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。rc.12 原有 Swift Package / Git Pod 配套 **0.2.0-rc.1**。rc.13 新增原生适配 Pod 和纯 ArkTS HAR；Maven rc.14/rc.15 补齐 Android 供应商依赖和 Main dispatcher；详见[可选诊断 SDK](docs/可选诊断SDK.md)。
 
-正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.18) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
+正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
 
 ## 支持范围
 
@@ -115,10 +115,10 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.18")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.19")
 ```
 
-系统采集独立启用。iOS 原生包用精确 Git tag `0.2.0-rc.17` 下 `Package.swift` 的 `GYDiagnosticsNative` product，或同 tag 的 Git Pod；所有 diagnostics Pods 使用同一个 Git source/tag。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
+系统采集独立启用。iOS 原生包用精确 Git tag `0.2.0-rc.19` 下 `Package.swift` 的 `GYDiagnosticsNative` product，或同 tag 的 Git Pod；所有 diagnostics Pods 使用同一个 Git source/tag。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
 
 ## 最小使用
 

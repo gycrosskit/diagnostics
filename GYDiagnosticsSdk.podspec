@@ -1,7 +1,7 @@
 Pod::Spec.new do |spec|
   spec.name = 'GYDiagnosticsSdk'
   spec.summary = '无宿主依赖的诊断 SDK 配置与生命周期接口'
-  spec.version = '0.2.0-rc.17'
+  spec.version = '0.2.0-rc.19'
   spec.homepage = 'https://github.com/gycrosskit/diagnostics'
   spec.license = { :type => 'Apache-2.0', :file => 'LICENSE' }
   spec.author = { 'GY CrossKit' => 'https://github.com/gycrosskit' }
