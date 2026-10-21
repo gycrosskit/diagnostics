@@ -1,5 +1,9 @@
 package io.github.gycrosskit.diagnostics.umeng
 
+import android.content.Context
+import com.umeng.analytics.MobclickAgent
+import com.umeng.commonsdk.UMConfigure
+import com.umeng.umcrash.custommapping.UAPMCustomMapping
 import io.github.gycrosskit.diagnostics.sdk.AndroidDiagnosticSdkFactory
 import java.util.ServiceLoader
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkConfiguration
@@ -17,10 +21,70 @@ import org.robolectric.RuntimeEnvironment
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class UmengConfigurationTest {
+    @Test
+    @Config(shadows = [InitializationShadow::class, AnalyticsShadow::class, CustomMappingShadow::class])
+    fun `brand and build environment use searchable dimensions after SDK initialization`() = runBlocking<Unit> {
+        for ((brand, environment) in listOf("chonghe" to "qa", "hehekang" to "release")) {
+            InitializationShadow.started = false
+            CustomMappingShadow.values.clear()
+            UmengDiagnosticSdkBridge(RuntimeEnvironment.getApplication()).initialize(
+                DiagnosticSdkConfiguration(DiagnosticSdkProvider.UMENG, appKey = "test-key",
+                    channel = "distribution", brandId = brand, environment = environment),
+                "installation-id", "1.2.3", "42",
+            )
+            assertTrue(InitializationShadow.started)
+            assertEquals(mapOf("s1" to brand, "s2" to environment), CustomMappingShadow.values)
+        }
+    }
+
+    // 替身阻止真实 SDK 启动和上报，并要求维度只能在初始化返回后设置。
+    @Implements(value = UMConfigure::class, callThroughByDefault = false)
+    class InitializationShadow {
+        companion object {
+            var started = false
+
+            @JvmStatic
+            @Implementation
+            fun __staticInitializer__() {}
+
+            @JvmStatic
+            @Implementation
+            fun init(context: Context, appKey: String, channel: String, deviceType: Int, pushSecret: String?) {
+                started = true
+            }
+        }
+    }
+
+    @Implements(UAPMCustomMapping::class)
+    class CustomMappingShadow {
+        companion object {
+            val values = mutableMapOf<String, String>()
+
+            @JvmStatic
+            @Implementation
+            fun putStringParam(key: String, value: String): Boolean {
+                check(InitializationShadow.started)
+                values[key] = value
+                return true
+            }
+        }
+    }
+
+    @Implements(value = MobclickAgent::class, callThroughByDefault = false)
+    class AnalyticsShadow {
+        companion object {
+            @JvmStatic
+            @Implementation
+            fun __staticInitializer__() {}
+        }
+    }
+
     @Test
     fun `core provides Android Main dispatcher before vendor initialization`() {
         assertFalse(Dispatchers.Main.immediate.isDispatchNeeded(EmptyCoroutineContext))

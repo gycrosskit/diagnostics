@@ -72,3 +72,86 @@ if provider and "-PdiagnosticsProvider=" + provider in sys.argv:
     attempted = [json.loads(line) for line in failed_calls.read_text().splitlines()]
     assert len(attempted) == 3, 'Failed consumer must stop without retry or continuing to Umeng'
 print('Source R8 contract: per-SHA publication identity and three consumers without repeated refresh')
+
+# 只恢复 metadata 下载连接，不把编译失败或旧日志中的超时当成重试依据。
+resolve_step = jobs['android'].split('      - name: Resolve source metadata with bounded connection recovery\n', 1)[1].split('      - name:', 1)[0]
+resolve_commands = resolve_step.split('        run: |\n', 1)[1]
+resolve_commands = '\n'.join(line[10:] for line in resolve_commands.splitlines())
+with tempfile.TemporaryDirectory() as directory:
+    temporary = Path(directory)
+    recorder = temporary / 'python3'
+    recorder.write_text('#!' + sys.executable + '\n' + r'''import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+if args[0].endswith('/ci-metadata-retry.py'):
+    os.execv(sys.executable, [sys.executable, *args])
+calls = Path(os.environ['RESOLVE_CALLS'])
+with calls.open('a') as output:
+    output.write(json.dumps({'version': os.environ.get('VERSION'), 'args': args}) + '\n')
+attempt = len(calls.read_text().splitlines())
+case = os.environ['RESOLVE_CASE']
+log = Path(args[args.index('--log') + 1]); log.parent.mkdir(parents=True, exist_ok=True)
+if case == 'success' or (case == 'once' and attempt > 1) or (case == 'twice' and attempt > 2):
+    log.write_text('BUILD SUCCESSFUL\n'); sys.exit(0)
+host = 'other.example' if case == 'wrong_host' else 'maven.eazytec-cloud.com'
+timeout = '> Connect to ' + host + ':443 [61.177.127.227] failed: Connect timed out\n'
+url = 'https://' + host + '/nexus/repository/maven-public/org/example/metadata.jar'
+task = ':diagnostics-core:compileKotlinAndroid' if case == 'compiler' else ':diagnostics-core:transformCommonMainDependenciesMetadata'
+failure = "Execution failed for task '" + task + "'.\n> Could not resolve all files.\n   > Could not GET '" + url + "'.\n      "
+failure += {'tls': '> PKIX path building failed\n', 'http': '> Received status code 404\n',
+            'stale': '> Compilation error\n'}.get(case, timeout)
+if case == 'mixed': failure += '> Compilation error\n'
+if case == 'mixed_missing': failure += '> Could not find missing.jar\n'
+log.write_text((timeout if case == 'stale' else '') + '* What went wrong:\n' + failure + '* Try:\n')
+sys.exit(17)
+''')
+    recorder.chmod(0o700)
+    curl = temporary / 'curl'
+    curl.write_text('#!' + sys.executable + '\n' + r'''import json, os, sys
+args = sys.argv[1:]
+assert args[0] == '--disable'
+assert '--head' in args and '--fail' in args and '--ipv4' in args
+assert args[args.index('--proto') + 1] == '=https'
+assert args[args.index('--noproxy') + 1] == 'maven.eazytec-cloud.com'
+assert args[args.index('--connect-timeout') + 1] == '5'
+assert args[args.index('--max-time') + 1] == '15'
+assert not any(x in args for x in ['-k', '--insecure', '-L', '--location'])
+assert args[-1] == 'https://maven.eazytec-cloud.com/nexus/repository/maven-public/org/example/metadata.jar'
+with open(os.environ['PROBE_CALLS'], 'a') as output: output.write(json.dumps(args) + '\n')
+print('http=200 remote_ip=61.177.127.227 connect_seconds=0.1')
+sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
+''')
+    curl.chmod(0o700)
+    (temporary / 'sleep').write_text('#!/usr/bin/env bash\nexit 0\n')
+    (temporary / 'sleep').chmod(0o700)
+    for case, count, expected_exit, probes in [('success', 1, 0, 0), ('once', 2, 0, 1),
+                                             ('twice', 3, 0, 2), ('exhausted', 3, 17, 3),
+                                             ('tls', 1, 17, 0), ('http', 1, 17, 0),
+                                             ('compiler', 1, 17, 0), ('mixed', 1, 17, 0),
+                                             ('stale', 1, 17, 0), ('wrong_host', 1, 17, 0),
+                                             ('mixed_missing', 1, 17, 0)]:
+        work = temporary / case; work.mkdir()
+        calls, probe_calls = work / 'calls.jsonl', work / 'probe.jsonl'
+        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', resolve_commands], cwd=work,
+                                env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
+                                     'GITHUB_SHA': 'd' * 40, 'RESOLVE_CALLS': str(calls),
+                                     'GITHUB_WORKSPACE': str(ROOT),
+                                     'PROBE_CALLS': str(probe_calls), 'RESOLVE_CASE': case},
+                                capture_output=True, text=True)
+        assert result.returncode == expected_exit, (case, result.stdout, result.stderr)
+        invocations = [json.loads(line) for line in calls.read_text().splitlines()]
+        assert len(invocations) == count, (case, invocations)
+        logs = []
+        for invocation in invocations:
+            args = invocation['args']
+            assert invocation['version'] == 'source-r8-' + 'd' * 40
+            assert ':diagnostics-core:transformCommonMainDependenciesMetadata' in args
+            assert '-Dorg.gradle.internal.http.connectionTimeout=10000' in args
+            assert '-Dorg.gradle.internal.http.socketTimeout=60000' in args
+            assert '--no-daemon' in args and '--max-workers=1' in args
+            assert [arg for arg in args if arg.startswith(':')] == [':diagnostics-core:transformCommonMainDependenciesMetadata']
+            assert not any('max.tentatives' in arg for arg in args), 'Preserve native Gradle recovery'
+            logs.append(args[args.index('--log') + 1])
+        assert len(set(logs)) == count, 'Preserve each attempt separately'
+        assert (len(probe_calls.read_text().splitlines()) if probe_calls.exists() else 0) == probes
+print('Metadata recovery: 11 cases; bounded exact-host TCP retries, no compilation/test retry')

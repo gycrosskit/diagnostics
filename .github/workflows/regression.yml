@@ -204,6 +204,33 @@ jobs:
       - run: python3 scripts/assert-test-results.py diagnostics-core/build/test-results/jvmTest diagnostics-dingtalk/build/test-results/jvmTest diagnostics-ktor/build/test-results/jvmTest diagnostics-okhttp/build/test-results/jvmTest diagnostics-core/build/test-results/testDebugUnitTest diagnostics-dingtalk/build/test-results/testDebugUnitTest diagnostics-ktor/build/test-results/testDebugUnitTest diagnostics-bugly/build/test-results/testDebugUnitTest diagnostics-umeng/build/test-results/testDebugUnitTest
         timeout-minutes: 35
         if: needs.changes.outputs.source == 'true'
+      - name: Resolve source metadata with bounded connection recovery
+        if: needs.changes.outputs.source == 'true'
+        timeout-minutes: 8
+        run: |
+          SOURCE_R8_VERSION="source-r8-${GITHUB_SHA}"
+          for attempt in 1 2 3; do
+            log="ci-diagnostics/source-r8-metadata-$attempt.log"
+            # 仓库 HTTP 使用 Apache；URLConnection 的 sun.net.client 参数不覆盖此连接限时。
+            if VERSION="$SOURCE_R8_VERSION" python3 scripts/ci-run.py --no-progress-seconds 300 --log "$log" -- bash gradlew --init-script "$PWD/scripts/ci-repositories.gradle" --info :diagnostics-core:transformCommonMainDependenciesMetadata -Dorg.gradle.internal.http.connectionTimeout=10000 -Dorg.gradle.internal.http.socketTimeout=60000 --no-daemon --max-workers=1; then
+              break
+            else
+              resolve_status=$?
+            fi
+            # 只恢复这个下载任务的精确 TCP 失败；编译、TLS、HTTP 和混合错误立即保留失败。
+            if ! url="$(python3 "$GITHUB_WORKSPACE/scripts/ci-metadata-retry.py" "$log")"; then
+              exit "$resolve_status"
+            fi
+            if [[ -n "$url" ]]; then
+              # 同 runner / 精确公开 URL 的探测只留诊断；不能替代 Gradle 成功。
+              probe="ci-diagnostics/source-r8-network-$attempt.log"
+              curl --disable --head --fail --silent --show-error --proto '=https' --ipv4 --noproxy maven.eazytec-cloud.com --connect-timeout 5 --max-time 15 --output /dev/null --write-out 'http=%{http_code} remote_ip=%{remote_ip} connect_seconds=%{time_connect}\n' "$url" > "$probe" 2>&1 || true
+              cat "$probe"
+            fi
+            if [[ "$attempt" == 3 ]]; then exit "$resolve_status"; fi
+            echo "Retrying only metadata TCP connection failure ($attempt/3); first receipts preserved"
+            sleep "$((attempt * 2))"
+          done
       - name: Verify Android R8 from source staging publications
         if: needs.changes.outputs.source == 'true'
         timeout-minutes: 15

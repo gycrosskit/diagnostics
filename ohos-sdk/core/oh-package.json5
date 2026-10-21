@@ -7,5 +7,9 @@
   "repository": "https://github.com/gycrosskit/diagnostics",
   "dependencies": {
     "@kuikly-open/render": "2.29.1"
+  },
+  "author": {
+    "name": "gycrosskit",
+    "url": "https://github.com/gycrosskit/diagnostics"
   }
 }
