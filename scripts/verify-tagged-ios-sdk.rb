@@ -1,10 +1,13 @@
 #!/usr/bin/env ruby
+# Preload via the installed pod launcher; never preload this verifier in children.
+ENV.delete('RUBYOPT')
 require 'cocoapods'
 require 'digest'
 require 'fileutils'
 require 'json'
 require 'open3'
 require 'tmpdir'
+require 'rbconfig'
 
 # Validator may skip Xcode silently; every release consumer must compile for real.
 class TaggedPodValidator < Pod::Validator
@@ -33,7 +36,8 @@ root = Dir.pwd
 repository = 'https://github.com/gycrosskit/diagnostics.git'
 output = File.join(root, 'ci-diagnostics', 'tagged-ios')
 FileUtils.mkdir_p(output)
-proof = { version: version, rubyVersion: RUBY_VERSION, cocoaPodsVersion: Pod::VERSION, metadataInput: 'local exact-tag podspec only; compiled sources downloaded by CocoaPods', pods: [] }
+proof = { version: version, rubyVersion: RUBY_VERSION, rubyExecutable: RbConfig.ruby, cocoaPodsVersion: Pod::VERSION, metadataInput: 'local exact-tag podspec only; compiled sources downloaded by CocoaPods', pods: [] }
+puts "Tagged iOS runtime: Ruby #{RUBY_VERSION}, CocoaPods #{Pod::VERSION}, #{RbConfig.ruby}"
 unless check_only
   refs, error, status = Open3.capture3('git', 'ls-remote', '--tags', repository, "refs/tags/#{version}", "refs/tags/#{version}^{}")
   abort "Cannot resolve tag: #{error}" unless status.success?
@@ -160,3 +164,4 @@ proof[:swiftPackage] = { version: version, revision: tag_sha, fixtureFiles: fixt
                          command: command, compilerLogSha256: Digest::SHA256.file(compiler_log).hexdigest,
                          ownConsumerCompiled: 'NativeConsumer.swift', locksChecked: locks.length, result: 'passed' }
 File.write(File.join(output, 'proof.json'), JSON.pretty_generate(proof) + "\n")
+exit
