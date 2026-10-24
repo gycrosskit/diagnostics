@@ -1,6 +1,6 @@
 {
   "name": "@gycrosskit/diagnostics-core",
-  "version": "0.2.0-rc.20",
+  "version": "1.0.0",
   "description": "HarmonyOS 可选诊断 core",
   "main": "Index.ets",
   "license": "Apache-2.0",

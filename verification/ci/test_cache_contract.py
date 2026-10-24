@@ -187,7 +187,7 @@ Path(args[-1]).mkdir(parents=True)
 ''')
     git.chmod(0o700)
     legacy = ['0.1.0', *[f'0.2.0-rc.{version}' for version in range(1, 19)]]
-    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0']:
+    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0', '1.0.0']:
         calls = temporary / (version + '.jsonl')
         result = subprocess.run(['bash', '-euo', 'pipefail', '-c', tagged_commands], cwd=ROOT,
                                 env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
