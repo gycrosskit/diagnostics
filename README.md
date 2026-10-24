@@ -1,8 +1,12 @@
 # GY CrossKit Diagnostics
 
+2026-10-24 版本准备：Maven、四个 iOS Git Pods 和三个 OHOS HAR 的版本元数据统一为 `1.0.0` 未发布候选，Gradle consumer 默认版本同步为 `1.0.0`。下方 rc.19 / rc.20 安装示例及已发布证据保留，不能作为 1.0.0 已发布证明；候选公开消费须等精确 tag / Release / Registry 验收。
+
+构建、回归、打包和发布消费的迁移目标为 Jenkins，待本轮按源码/CI SHA 与准确构建链接实跑验收。本机只运行 Python 3 标准库、shell 语法和文档轻量检查，不执行 Gradle、Swift/Xcode 或 Hvigor。原 Actions 配置仍保留并启用，历史运行结果不代算新候选。
+
 本库提供 Core、可选网络/通知及 Bugly / 友盟适配，原生宿主和 Kuikly 复用公开能力。三端入口、公开功能组和设备验收边界见[功能与平台差异](docs/功能与平台差异.md)。
 
-**本轮配套版本：Maven / iOS Git Pods `0.2.0-rc.19`，OHOS HAR `0.2.0-rc.20`。** rc.19 包含 Android 友盟初始化顺序、iOS ASA 关闭与 OHOS InternalPlugin 修复，并保留 rc.18 的 Ktor 有效 `Content-Type` 和 `HttpResponse.recordDiagnosticsBody(bytes)`。默认 `none` 不引入供应商 SDK；真实品牌/环境维度与隐私准入合同保持不变。各渠道可用性须分别核对 [rc.19 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)。
+**既有配套版本：Maven / iOS Git Pods `0.2.0-rc.19`，OHOS HAR `0.2.0-rc.20`。** rc.19 包含 Android 友盟初始化顺序、iOS ASA 关闭与 OHOS InternalPlugin 修复，并保留 rc.18 的 Ktor 有效 `Content-Type` 和 `HttpResponse.recordDiagnosticsBody(bytes)`。默认 `none` 不引入供应商 SDK；真实品牌/环境维度与隐私准入合同保持不变。各渠道可用性须分别核对 [rc.19 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)。
 
 OHOS rc.19 的真实 HAR 因缺少 LICENSE 文本被 Registry 拒绝，原 tag / Release 资产保留；rc.20 仅补齐原 Apache-2.0 许可文件与三包配套版本，不改变运行时 API。以独立 `ohos-0.2.0-rc.20` tag 固定源，rc.19 Release 仅追加带 rc.20 文件名的资产；Registry 上架、下载和消费另行核验。
 

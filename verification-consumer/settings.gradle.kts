@@ -31,7 +31,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "diagnostics-consumer"
 
-val r8Version = providers.gradleProperty("diagnosticsVersion").orElse("0.2.0-rc.11").get()
+val r8Version = providers.gradleProperty("diagnosticsVersion").orElse("1.0.0").get()
 if (providers.gradleProperty("diagnosticsProviders").orNull == "true" &&
     r8Version != "0.1.0" && r8Version !in (1..12).map { "0.2.0-rc.$it" }) {
     include(":r8-app")

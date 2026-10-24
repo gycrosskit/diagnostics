@@ -1,5 +1,7 @@
 # 可选诊断 SDK
 
+2026-10-24：Maven、iOS Pods 与 OHOS HAR 的元数据已统一为 `1.0.0` 未发布候选，待 Jenkins 构建与精确发布消费验收；下方 rc.19 / rc.20 坐标记录既有版本，厂商依赖、授权与宿主合同不变。
+
 `0.2.0-rc.19` 以独立 Maven 组件提供 Bugly、友盟适配。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
 
 ## 依赖与职责
@@ -10,7 +12,7 @@
 | iOS Git Pod | `GYDiagnosticsBugly` + `GYDiagnosticsSdk` 同仓 rc.19 | `GYDiagnosticsUmeng` + `GYDiagnosticsSdk` 同仓 rc.19 |
 | OHOS Release HAR rc.20 | `DiagnosticsCore-0.2.0-rc.20.har` + `DiagnosticsBugly-0.2.0-rc.20.har` | `DiagnosticsCore-0.2.0-rc.20.har` + `DiagnosticsUmeng-0.2.0-rc.20.har` |
 
-本轮 Maven / 全部 iOS Git Pods 保持 rc.19，OHOS HAR 配套 rc.20；各渠道以精确 Release 和消费门禁为准。rc.16 扩展 OHOS 完整运行配置载荷，原有四参构造器和无载荷请求保持兼容；rc.14/rc.15 的 Android 依赖修复继续保留。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
+既有 Maven / 全部 iOS Git Pods 为 rc.19，OHOS HAR 配套 rc.20；各渠道以精确 Release 和消费门禁为准。rc.16 扩展 OHOS 完整运行配置载荷，原有四参构造器和无载荷请求保持兼容；rc.14/rc.15 的 Android 依赖修复继续保留。友盟 APM 同样漏声明 OkHttp/Okio，故适配组件显式包含 OkHttp 5.2.1，不能依赖宿主刚好已有网络库。BuglyPro AAR 保留 SSE 类型引用但其 POM 漏声明，故 Android 适配组件补齐 OkHttp SSE 5.2.1；即使关闭性能 monitor，R8 仍需解析这些类型，不能在宿主用忽略规则代替真实依赖。
 
 对外只发布 Bugly、友盟两个供应商适配组件；每个组件整体引入厂商 SDK，宿主默认选择 `none`，本期提供 `bugly` / `umeng`，不按崩溃/日志再拆包。能力开关控制初始化和日志转发，关闭开关不代表厂商二进制代码被剔除。
 

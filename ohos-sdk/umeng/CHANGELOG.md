@@ -1,5 +1,10 @@
 # 更新记录
 
+## 1.0.0（未发布候选）
+
+- 与 Maven / iOS Git Pods 统一正式候选版本；沿用 rc.20 的许可文本、API、厂商依赖和隐私边界。
+- 真实 HAR 构建、Registry 发布与消费待 Jenkins 分别验收，历史结果不代算。
+
 ## 0.2.0-rc.20
 
 - 将仓库原 Apache-2.0 LICENSE 文本纳入真实 HAR，补齐 OHPM 开源包检查。
