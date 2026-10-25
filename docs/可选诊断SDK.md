@@ -1,6 +1,8 @@
 # 可选诊断 SDK
 
-2026-10-24：Maven、iOS Pods 与 OHOS HAR 的元数据已统一为 `1.0.0` 未发布候选，待 Jenkins 构建与精确发布消费验收；下方 rc.19 / rc.20 坐标记录既有版本，厂商依赖、授权与宿主合同不变。
+2026-10-25 当前候选为 Maven、已有 Native/Harmony 渠道配套 `1.0.1`；保留已存在的 `1.0.0` 标签与原摘要。下述带日期的 `1.0.0` 准备记录属于历史，本轮源码、归档和公开消费须重新验收，尚未宣称已发布。
+
+> 历史准备记录：2026-10-24：Maven、iOS Pods 与 OHOS HAR 的元数据已统一为 `1.0.0` 未发布候选，待 Jenkins 构建与精确发布消费验收；下方 rc.19 / rc.20 坐标记录既有版本，厂商依赖、授权与宿主合同不变。
 
 `0.2.0-rc.19` 以独立 Maven 组件提供 Bugly、友盟适配。默认 `DiagnosticSdkProvider.NONE`；core 不传递任何供应商 SDK 依赖。两种供应商均先使用已有本地 diagnostics；未配置、品牌/环境不符、未获隐私授权或初始化抛错时不转发远程日志。
 
@@ -121,6 +123,6 @@ Android 启用第三方崩溃时先交出本地实时 handler，明确抛错恢�
 
 ## 验证入口
 
-源码用现有 `regression.yml`：core 并发/授权/队列/脱敏测试，两个 Android 适配模块行为测试与 none/Bugly/友盟三组真实 R8 消费，真实 Native 编译与独立 Pod lint，OHOS Runtime/Module 和 Renderer 生命周期测试。冻结归档与公开 Maven 全量校验后，由 `verification-consumer` 仅消费精确发布坐标；宿主另验证 none 和选中供应商工厂。
+源码验证入口为[统一远程验证（Jenkins）](https://github.com/gycrosskit/.github/blob/main/docs/统一远程验证.md)，验证合同包括：core 并发/授权/队列/脱敏测试，两个 Android 适配模块行为测试与 none/Bugly/友盟三组真实 R8 消费，真实 Native 编译与独立 Pod lint，OHOS Runtime/Module 和 Renderer 生命周期测试。候选冻结/私有消费与精确 Tag/候选公开消费分别按[发布流程](https://github.com/gycrosskit/.github/blob/main/docs/发布流程.md)使用独立 package/release Job；冻结归档与公开 Maven 全量校验后，由 `verification-consumer` 仅消费精确发布坐标；宿主另验证 none 和选中供应商工厂。
 
 rc.20 HAR 工程使用 HarmonyOS6.0.2 / API22 的 target/compatible 与 model，真实工具版本另记于 provenance。HAR 只接受真实 Hvigor `assembleHar` 输出并校验源码、版本、API22 和依赖；源码 ZIP 不算 HAR。OHPM 未审核上架前使用不可变 Release HAR，不能宣称 Registry 可用。源码测试、SDK 编译、远程消费、设备启动和真实后台回捞分别记录；无配置时不运行真实 SDK 上报。

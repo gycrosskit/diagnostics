@@ -4,7 +4,7 @@ plugins {
 }
 allprojects {
     group = providers.environmentVariable("GROUP").orElse("com.github.gycrosskit.diagnostics").get()
-    version = providers.environmentVariable("VERSION").orElse("1.0.0").get()
+    version = providers.environmentVariable("VERSION").orElse("1.0.1").get()
     plugins.withId("maven-publish") {
         extensions.configure<org.gradle.api.publish.PublishingExtension> {
             publications.withType<org.gradle.api.publish.maven.MavenPublication>().configureEach {

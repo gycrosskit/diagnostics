@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
 """缓存只用于源码编译；测试任务与发布验证保留原执行边界。"""
 from pathlib import Path
-import re
 import json
 import os
+import shutil
 import subprocess
-import tempfile
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-workflow = (ROOT / '.github/workflows/regression.yml').read_text()
-jobs = dict(re.findall(r'^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)',
-                       workflow.split('\njobs:\n', 1)[1], re.M | re.S))
-for name in ('android', 'native'):
-    job = jobs[name]
-    assert "GYC_CI_BUILD_CACHE: 'true'" in job
-    assert 'gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a' in job
-    assert "cache-read-only: ${{ github.event_name == 'pull_request' }}" in job
-    cache_step = re.search(r'uses: gradle/actions/setup-gradle@[^\n]+\n        if: ([^\n]+)', job)
-    assert cache_step and cache_step.group(1) == "needs.changes.outputs.source == 'true'"
-    assert 'cache: gradle' not in job, 'Do not restore Gradle User Home twice'
-    assert '--init-script "$PWD/scripts/ci-repositories.gradle"' in job
-for name, job in jobs.items():
-    if name not in ('android', 'native'):
-        assert 'GYC_CI_BUILD_CACHE' not in job
-        assert 'gradle/actions/setup-gradle@' not in job
+assert os.environ.get('CI_AUTOMATION_ROOT'), 'CI_AUTOMATION_ROOT must identify the fixed trusted CI source'
+sys.path.insert(0, str(Path(os.environ['CI_AUTOMATION_ROOT']).resolve(strict=True)))
+from jenkins.component_checks import matrix
+
+jobs = matrix('diagnostics')['jobs']
 policy = (ROOT / 'scripts/ci-repositories.gradle').read_text()
 assert "if (System.getenv('GYC_CI_BUILD_CACHE') == 'true')" in policy
 assert 'gradle.startParameter.buildCacheEnabled = true' in policy
@@ -36,9 +25,8 @@ assert '--init-script "$PWD/scripts/ci-repositories.gradle"' in archive
 print('CI cache contract: source-only cache and real test execution policy')
 
 # 执行真实 R8 shell 步骤，用记录器替代编译命令，验证同 SHA 共享坐标、不同 SHA 隔离。
-r8_step = jobs['native'].split('      - name: Verify Android R8 from source staging publications\n', 1)[1].split('      - name:', 1)[0]
-commands = r8_step.split('        run: |\n', 1)[1]
-commands = '\n'.join(line[10:] for line in commands.splitlines())
+commands = next(step['script'] for step in jobs['native']['steps']
+                if step['name'] == 'Verify Android R8 from source staging publications')
 with tempfile.TemporaryDirectory() as directory:
     temporary = Path(directory)
     recorder = temporary / 'python3'
@@ -72,19 +60,10 @@ if provider and "-PdiagnosticsProvider=" + provider in sys.argv:
     attempted = [json.loads(line) for line in failed_calls.read_text().splitlines()]
     assert len(attempted) == 3, 'Failed consumer must stop without retry or continuing to Umeng'
 print('Source R8 contract: per-SHA publication identity and three consumers without repeated refresh')
-assert 'Resolve source metadata with bounded connection recovery' not in jobs['android']
-assert 'Verify Android R8 from source staging publications' not in jobs['android']
-assert jobs['native'].index(':diagnostics-core:compileKotlinIosArm64') < jobs['native'].index('Resolve source metadata with bounded connection recovery')
-assert 'test -f "$ANDROID_HOME/platforms/android-36/android.jar"' in jobs['native']
-assert jobs['native'].index('pod --check-only') < jobs['native'].index(':diagnostics-core:compileKotlinIosArm64')
-assert 'node --test verification/ohos-sdk.cjs' in jobs['android']
-assert 'testDebugUnitTest' in jobs['android'] and 'assert-test-results.py' in jobs['android']
-
 
 # 只恢复 metadata 下载连接，不把编译失败或旧日志中的超时当成重试依据。
-resolve_step = jobs['native'].split('      - name: Resolve source metadata with bounded connection recovery\n', 1)[1].split('      - name:', 1)[0]
-resolve_commands = resolve_step.split('        run: |\n', 1)[1]
-resolve_commands = '\n'.join(line[10:] for line in resolve_commands.splitlines())
+resolve_commands = next(step['script'] for step in jobs['native']['steps']
+                        if step['name'] == 'Resolve source metadata with bounded connection recovery')
 with tempfile.TemporaryDirectory() as directory:
     temporary = Path(directory)
     recorder = temporary / 'python3'
@@ -94,13 +73,19 @@ args = sys.argv[1:]
 if args[0].endswith('/ci-metadata-retry.py'):
     os.execv(sys.executable, [sys.executable, *args])
 calls = Path(os.environ['RESOLVE_CALLS'])
-with calls.open('a') as output:
-    output.write(json.dumps({'version': os.environ.get('VERSION'), 'args': args}) + '\n')
-attempt = len(calls.read_text().splitlines())
+attempt = len(calls.read_text().splitlines()) + 1 if calls.exists() else 1
 case = os.environ['RESOLVE_CASE']
 log = Path(args[args.index('--log') + 1]); log.parent.mkdir(parents=True, exist_ok=True)
+def finish(content, status):
+    receipt = {'attempt': attempt, 'exit_code': status}
+    log.write_text(content)
+    log.with_name(log.name + '.jsonl').write_text(json.dumps(receipt) + '\n')
+    with calls.open('a') as output:
+        output.write(json.dumps({'version': os.environ.get('VERSION'), 'args': args,
+                                 'log': content, 'receipt': receipt}) + '\n')
+    sys.exit(status)
 if case == 'success' or (case == 'once' and attempt > 1) or (case == 'twice' and attempt > 2):
-    log.write_text('BUILD SUCCESSFUL\n'); sys.exit(0)
+    finish('BUILD SUCCESSFUL\n', 0)
 host = 'other.example' if case == 'wrong_host' else 'maven.eazytec-cloud.com'
 timeout = '> Connect to ' + host + ':443 [61.177.127.227] failed: Connect timed out\n'
 url = 'https://' + host + '/nexus/repository/maven-public/org/example/metadata.jar'
@@ -110,8 +95,7 @@ failure += {'tls': '> PKIX path building failed\n', 'http': '> Received status c
             'stale': '> Compilation error\n'}.get(case, timeout)
 if case == 'mixed': failure += '> Compilation error\n'
 if case == 'mixed_missing': failure += '> Could not find missing.jar\n'
-log.write_text((timeout if case == 'stale' else '') + '* What went wrong:\n' + failure + '* Try:\n')
-sys.exit(17)
+finish((timeout if case == 'stale' else '') + '* What went wrong:\n' + failure + '* Try:\n', 17)
 ''')
     recorder.chmod(0o700)
     curl = temporary / 'curl'
@@ -139,6 +123,8 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
                                              ('stale', 1, 17, 0), ('wrong_host', 1, 17, 0),
                                              ('mixed_missing', 1, 17, 0)]:
         work = temporary / case; work.mkdir()
+        (work / 'scripts').mkdir()
+        shutil.copyfile(ROOT / 'scripts/ci-metadata-retry.py', work / 'scripts/ci-metadata-retry.py')
         calls, probe_calls = work / 'calls.jsonl', work / 'probe.jsonl'
         result = subprocess.run(['bash', '-euo', 'pipefail', '-c', resolve_commands], cwd=work,
                                 env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
@@ -149,7 +135,6 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
         assert result.returncode == expected_exit, (case, result.stdout, result.stderr)
         invocations = [json.loads(line) for line in calls.read_text().splitlines()]
         assert len(invocations) == count, (case, invocations)
-        logs = []
         for invocation in invocations:
             args = invocation['args']
             assert invocation['version'] == 'source-r8-' + 'd' * 40
@@ -159,15 +144,20 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
             assert '--no-daemon' in args and '--max-workers=1' in args
             assert [arg for arg in args if arg.startswith(':')] == [':diagnostics-core:transformCommonMainDependenciesMetadata']
             assert [arg for arg in args if 'max.tentatives' in arg] == ['-Dorg.gradle.internal.repository.max.tentatives=1'], 'Only metadata outer recovery owns retries'
-            logs.append(args[args.index('--log') + 1])
-        assert len(set(logs)) == count, 'Preserve each attempt separately'
+        failed_count = count if expected_exit else count - 1
+        for attempt, invocation in enumerate(invocations, 1):
+            name = f'source-r8-metadata-{attempt}.log' if attempt <= failed_count else 'source-r8-metadata.log'
+            log = work / 'ci-diagnostics' / name
+            assert log.read_text() == invocation['log'], (case, attempt, 'Original attempt log changed')
+            assert json.loads(log.with_name(log.name + '.jsonl').read_text()) == invocation['receipt']
+        assert (work / 'ci-diagnostics/source-r8-metadata.log').exists() == (expected_exit == 0)
         assert (len(probe_calls.read_text().splitlines()) if probe_calls.exists() else 0) == probes
 print('Metadata recovery: 11 cases; bounded exact-host TCP retries, no compilation/test retry')
 
-# 从 main 验旧版本仍执行原消费者；新四 Pod 验证只适用于 rc.19 及后续。
-tagged_step = jobs['release-native'].split('      - name: Verify exact tagged iOS native consumers\n', 1)[1].split('      - name:', 1)[0]
-tagged_commands = tagged_step.split('        run: |\n', 1)[1]
-tagged_commands = '\n'.join(line[10:] for line in tagged_commands.splitlines())
+# 验证固定 Jenkins 发布命令的版本分流，不读取已退役的 workflow。
+from jenkins.component_release_recipes import RECIPES
+tagged_commands = next(step['script'] for step in RECIPES['diagnostics']['macos']['steps']
+                       if step['name'] == 'Verify exact tagged iOS native consumers')
 with tempfile.TemporaryDirectory() as directory:
     temporary = Path(directory)
     recorder = temporary / 'python3'
@@ -187,7 +177,7 @@ Path(args[-1]).mkdir(parents=True)
 ''')
     git.chmod(0o700)
     legacy = ['0.1.0', *[f'0.2.0-rc.{version}' for version in range(1, 19)]]
-    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0', '1.0.0']:
+    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0', '1.0.0', '1.0.1']:
         calls = temporary / (version + '.jsonl')
         result = subprocess.run(['bash', '-euo', 'pipefail', '-c', tagged_commands], cwd=ROOT,
                                 env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
