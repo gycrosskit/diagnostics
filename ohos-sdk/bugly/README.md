@@ -1,11 +1,11 @@
 # @gycrosskit/diagnostics-bugly
 
-`1.0.0` 为未发布候选，下方安装命令仅在 Registry 发布并完成精确消费验收后使用；历史 rc.20 记录保留。构建与发布迁移目标为 Jenkins，待本轮实跑验收。
+`1.0.1` 为未发布候选，下方安装命令仅在 Registry 发布并完成精确消费验收后使用；历史 rc.20 记录保留。构建与发布迁移目标为 Jenkins，待本轮实跑验收。
 
 提供可选的 Bugly 诊断适配器，依赖同版本 diagnostics-core。
 
 ```bash
-ohpm install @gycrosskit/diagnostics-bugly@1.0.0
+ohpm install @gycrosskit/diagnostics-bugly@1.0.1
 ```
 
 由宿主显式选择供应商并传入配置，组件不依赖业务宿主。安装库不代表已完成设备、供应商服务或上报验收。
