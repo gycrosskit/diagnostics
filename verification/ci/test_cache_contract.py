@@ -153,3 +153,42 @@ sys.exit(22 if os.environ['RESOLVE_CASE'] == 'once' else 0)
         assert (work / 'ci-diagnostics/source-r8-metadata.log').exists() == (expected_exit == 0)
         assert (len(probe_calls.read_text().splitlines()) if probe_calls.exists() else 0) == probes
 print('Metadata recovery: 11 cases; bounded exact-host TCP retries, no compilation/test retry')
+
+# 验证固定 Jenkins 发布命令的版本分流，不读取已退役的 workflow。
+from jenkins.component_release_recipes import RECIPES
+tagged_commands = next(step['script'] for step in RECIPES['diagnostics']['macos']['steps']
+                       if step['name'] == 'Verify exact tagged iOS native consumers')
+with tempfile.TemporaryDirectory() as directory:
+    temporary = Path(directory)
+    recorder = temporary / 'python3'
+    recorder.write_text('#!' + sys.executable + '\n' + r'''import json, os, sys
+with open(os.environ['TAGGED_CALLS'], 'a') as output:
+    output.write(json.dumps(sys.argv[1:]) + '\n')
+with open(os.environ['TAGGED_CWDS'], 'a') as output:
+    output.write(os.getcwd() + '\n')
+''')
+    recorder.chmod(0o700)
+    git = temporary / 'git'
+    git.write_text('#!' + sys.executable + '\n' + r'''import os, sys
+from pathlib import Path
+args = sys.argv[1:]
+assert args == ['clone', '--depth', '1', '--branch', os.environ['VERSION'], 'https://github.com/gycrosskit/diagnostics.git', os.environ['RUNNER_TEMP'] + '/diagnostics-tagged-ios-metadata']
+Path(args[-1]).mkdir(parents=True)
+''')
+    git.chmod(0o700)
+    legacy = ['0.1.0', *[f'0.2.0-rc.{version}' for version in range(1, 19)]]
+    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0', '1.0.0']:
+        calls = temporary / (version + '.jsonl')
+        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', tagged_commands], cwd=ROOT,
+                                env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
+                                     'VERSION': version, 'TAGGED_CALLS': str(calls), 'TAGGED_CWDS': str(calls) + '.cwd',
+                                     'GITHUB_WORKSPACE': str(ROOT), 'RUNNER_TEMP': str(temporary / version)},
+                                capture_output=True, text=True)
+        assert result.returncode == 0, (version, result.stdout, result.stderr)
+        invocations = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
+        if version in legacy:
+            assert not invocations and 'skipped for ' + version in result.stdout, version
+        else:
+            assert len(invocations) == 1 and invocations[0][-4:] == ['env', 'TAGGED_IOS_DIAGNOSTICS=' + str(ROOT / 'ci-diagnostics/tagged-ios'), 'RUBYOPT=-r' + str(ROOT / 'scripts/verify-tagged-ios-sdk.rb'), 'pod'], version
+            assert [Path(path).resolve() for path in Path(str(calls) + '.cwd').read_text().splitlines()] == [(temporary / version / 'diagnostics-tagged-ios-metadata').resolve()]
+print('Tagged iOS release gate: legacy skips; installed pod launcher preloads exact verifier')
