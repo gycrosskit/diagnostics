@@ -9,7 +9,7 @@ kotlin {
     ohosArm64 { binaries.sharedLib { baseName = "DiagnosticsConsumer" } }
     applyDefaultHierarchyTemplate()
     sourceSets {
-        val consumerVersion = providers.gradleProperty("diagnosticsVersion").orElse("1.0.0").get()
+        val consumerVersion = providers.gradleProperty("diagnosticsVersion").orElse("1.0.1").get()
         if (consumerVersion != "0.1.0" && consumerVersion !in (1..11).map { "0.2.0-rc.$it" }) {
             commonMain.get().kotlin.srcDir("src/snapshotCommonMain/kotlin")
             commonTest.get().kotlin.srcDir("src/snapshotCommonTest/kotlin")
@@ -23,7 +23,7 @@ kotlin {
             val notificationMain by creating {
                 dependsOn(commonMain.get())
                 kotlin.srcDir("src/closureNotificationMain/kotlin")
-                dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-dingtalk:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.0").get()}") }
+                dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-dingtalk:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.1").get()}") }
             }
             androidMain.get().dependsOn(notificationMain)
             jvmMain.get().dependsOn(notificationMain)
@@ -36,16 +36,16 @@ kotlin {
                 commonMain.get().kotlin.srcDir("src/fileChannelCommonMain/kotlin")
                 commonTest.get().kotlin.srcDir("src/fileChannelCommonTest/kotlin")
             }
-            val version = providers.gradleProperty("diagnosticsVersion").orElse("1.0.0").get()
+            val version = providers.gradleProperty("diagnosticsVersion").orElse("1.0.1").get()
             // 旧版本远程回归仍可运行；新 Header API 从 rc.8 起提供。
             if (version !in (1..7).map { "0.2.0-rc.$it" } && version != "0.1.0") {
                 commonMain.get().kotlin.srcDir("src/headerPolicyCommonMain/kotlin")
             }
-            commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-ktor:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.0").get()}") }
+            commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-ktor:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.1").get()}") }
             val networkJvmMain by creating {
                 dependsOn(commonMain.get())
                 kotlin.srcDir("src/networkJvmMain/kotlin")
-                dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-okhttp:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.0").get()}") }
+                dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-okhttp:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.1").get()}") }
             }
             jvmMain.get().dependsOn(networkJvmMain)
             androidMain.get().dependsOn(networkJvmMain)
@@ -61,7 +61,7 @@ kotlin {
             androidUnitTest.get().kotlin.srcDir("src/sdkAndroidUnitTest/kotlin")
             ohosArm64Main.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-kuikly:$consumerVersion") }
         }
-        commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-core:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.0").get()}") }
+        commonMain.dependencies { implementation("com.github.gycrosskit.diagnostics:diagnostics-core:${providers.gradleProperty("diagnosticsVersion").orElse("1.0.1").get()}") }
         commonTest.dependencies { implementation(kotlin("test")) }
         jvmTest.dependencies { implementation(kotlin("test")) }
         androidUnitTest.dependencies { implementation(kotlin("test")) }
