@@ -2,11 +2,11 @@
 
 2026-10-24 版本准备：Maven、四个 iOS Git Pods 和三个 OHOS HAR 的版本元数据统一为 `1.0.0` 未发布候选，Gradle consumer 默认版本同步为 `1.0.0`。下方 rc.19 / rc.20 安装示例及已发布证据保留，不能作为 1.0.0 已发布证明；候选公开消费须等精确 tag / Release / Registry 验收。
 
-构建、回归、打包和发布消费的迁移目标为 Jenkins，待本轮按源码/CI SHA 与准确构建链接实跑验收。本机只运行 Python 3 标准库、shell 语法和文档轻量检查，不执行 Gradle、Swift/Xcode 或 Hvigor。原 Actions 配置仍保留并启用，历史运行结果不代算新候选。
+构建、回归、打包和发布消费的迁移目标为 Jenkins，待本轮按源码/CI SHA 与准确构建链接实跑验收。本机只运行 Python 3 标准库、shell 语法和文档轻量检查，不执行 Gradle、Swift/Xcode 或 Hvigor。源码 verify 入口为[统一远程验证（Jenkins）](https://github.com/gycrosskit/.github/blob/main/docs/统一远程验证.md)，候选冻结/私有消费与精确 Tag/候选公开消费分别按[发布流程](https://github.com/gycrosskit/.github/blob/main/docs/发布流程.md)使用独立 package/release Job；原 Actions 配置已退出使用，历史运行结果不代算新候选。
 
 本库提供 Core、可选网络/通知及 Bugly / 友盟适配，原生宿主和 Kuikly 复用公开能力。三端入口、公开功能组和设备验收边界见[功能与平台差异](docs/功能与平台差异.md)。
 
-**既有配套版本：Maven / iOS Git Pods `0.2.0-rc.19`，OHOS HAR `0.2.0-rc.20`。** rc.19 包含 Android 友盟初始化顺序、iOS ASA 关闭与 OHOS InternalPlugin 修复，并保留 rc.18 的 Ktor 有效 `Content-Type` 和 `HttpResponse.recordDiagnosticsBody(bytes)`。默认 `none` 不引入供应商 SDK；真实品牌/环境维度与隐私准入合同保持不变。各渠道可用性须分别核对 [rc.19 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 与[精确发布门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml)。
+**既有配套版本：Maven / iOS Git Pods `0.2.0-rc.19`，OHOS HAR `0.2.0-rc.20`。** rc.19 包含 Android 友盟初始化顺序、iOS ASA 关闭与 OHOS InternalPlugin 修复，并保留 rc.18 的 Ktor 有效 `Content-Type` 和 `HttpResponse.recordDiagnosticsBody(bytes)`。默认 `none` 不引入供应商 SDK；真实品牌/环境维度与隐私准入合同保持不变。各渠道可用性须分别核对 [rc.19 Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 与Jenkins 精确 SHA/版本发布回执。
 
 OHOS rc.19 的真实 HAR 因缺少 LICENSE 文本被 Registry 拒绝，原 tag / Release 资产保留；rc.20 仅补齐原 Apache-2.0 许可文件与三包配套版本，不改变运行时 API。以独立 `ohos-0.2.0-rc.20` tag 固定源，rc.19 Release 仅追加带 rc.20 文件名的资产；Registry 上架、下载和消费另行核验。
 
@@ -22,7 +22,7 @@ rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037
 
 历史版本 **0.2.0-rc.12** 首次增加原子只读快照、轮转安全的 ZIP/文本导出，以及 iOS/OHOS 有界 Throwable 格式化；用法见 [机制接入](docs/机制接入.md)。可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和通知模块与当前 Maven 保持同版；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。rc.12 原有 Swift Package / Git Pod 配套 **0.2.0-rc.1**。rc.13 新增原生适配 Pod 和纯 ArkTS HAR；Maven rc.14/rc.15 补齐 Android 供应商依赖和 Main dispatcher；详见[可选诊断 SDK](docs/可选诊断SDK.md)。
 
-正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 和 [远程消费门禁](https://github.com/gycrosskit/diagnostics/actions/workflows/regression.yml) 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
+正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 和 Jenkins 精确版本远程消费验证 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
 
 ## 支持范围
 
