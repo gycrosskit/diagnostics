@@ -5,6 +5,7 @@ package io.github.gycrosskit.diagnostics.kuikly
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkBridge
 import io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkConfiguration
 import com.tencent.kuikly.compose.coroutines.internal.KuiklyContextScheduler
+import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.module.CallbackRef
 import com.tencent.kuikly.core.module.Module
@@ -122,6 +123,8 @@ class DiagnosticSdkModule : Module() {
         }
         if (!continuation.isActive) { remove(request); return }
         try {
+            // 2.29.1 先注册回调再调用 native，预存 ref 才能清理同步桥异常。
+            request.callback = GlobalFunctions.peekNextRef().toString()
             request.callback = toNative(false, "initialize", JSONObject().apply {
                 put("privacyGranted", true)
                 put("configuration", JSONObject().apply {
