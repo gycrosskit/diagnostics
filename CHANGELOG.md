@@ -1,5 +1,11 @@
 # 更新记录
 
+## 1.0.2（Maven / 三 HAR）
+
+- Kuikly sender 持有回调资格并覆盖同步完成、取消和 dispose 清理；保留 core、存储与隐私合同。
+- Maven 全部既有 publications 与 Core/Bugly/Umeng HAR 同为 `1.0.2`；两个 HAR adapter 精确依赖 Core `1.0.2`。Renderer 范围由宿主选型，构建基线保持 2.29.1。
+- 四个 iOS 原生 Pods 保留 `1.0.1`；Maven/HAR 状态以精确 Release/Registry 及消费收据为准，不覆盖旧标签、摘要或验收记录。
+
 ## 1.0.1 - 2026-10-25
 
 - 为本轮最新 dev 配套候选使用新版本，保留既有 1.0.0 标签和制品摘要；源码验证、制品生产与公开消费重新执行，当前尚未发布。

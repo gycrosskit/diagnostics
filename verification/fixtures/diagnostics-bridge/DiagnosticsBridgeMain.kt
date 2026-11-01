@@ -54,7 +54,7 @@ fun main() = runBlocking {
     yield()
     check(!transferred.isCompleted) // 销毁 transport 不能把进程 SDK 初始化永久取消。
     Renderer.drain()
-    check(oldAudienceCallback?.active == false)
+    check(!Transport.active(oldAudienceCallback))
     check(Transport.calls.last().first == "root")
     Renderer.onRenderer { Transport.ready(Transport.calls.last().second) }
     transferred.await()
@@ -64,9 +64,9 @@ fun main() = runBlocking {
     yield(); Renderer.drain()
     val pending = Transport.calls.last().second
     cancelled.cancelAndJoin()
-    check(pending?.active == true) // Main 取消不能直接删除 Renderer 回执。
+    check(Transport.active(pending)) // Main 取消不能直接删除 Renderer 回执。
     Renderer.drain()
-    check(pending?.active == false)
+    check(!Transport.active(pending))
 
     repeat(1000) { OhosDiagnosticSdkBridge.writeLog("I", "tag", "cancelled-queue") }
     check(Renderer.pending == 64)
@@ -78,7 +78,7 @@ fun main() = runBlocking {
     Renderer.closed.add("root")
     Renderer.drain()
     yield()
-    check(!destroyed.isCompleted && last?.active == false)
+    check(!destroyed.isCompleted && !Transport.active(last))
     OhosDiagnosticSdkBridge.writeLog("I", "tag", "no-page")
     check(Renderer.pending == 0)
     val rebuilt = DiagnosticSdkModule()
@@ -91,7 +91,19 @@ fun main() = runBlocking {
     check(!destroyed.isCompleted && Transport.calls.last().first == "rebuilt")
     Renderer.onRenderer { Transport.ready(Transport.calls.last().second) }
     destroyed.await()
-    println("OHOS Kotlin bridge: early config / Renderer / bounded logs / page switch / cancellation / destroy passed")
+    Transport.synchronous = true
+    val immediate = async { OhosDiagnosticSdkBridge.initialize(configuration, "installation", "1.0", "2") }
+    yield(); Renderer.drain(); immediate.await()
+    check(!Transport.active(Transport.calls.last().second))
+    Transport.synchronous = false
+    Transport.throwAfterCreate = true
+    val rejected = async { runCatching { OhosDiagnosticSdkBridge.initialize(configuration, "installation", "1.0", "2") } }
+    yield(); Renderer.drain()
+    check(rejected.await().isFailure)
+    val rejectedCallback = Transport.calls.last().second
+    Renderer.onRenderer { OhosDiagnosticSdkBridge.detach(rebuilt) }
+    check(!Transport.active(rejectedCallback)) { "Synchronous native failure leaked callback" }
+    println("OHOS Kotlin bridge: early config / Renderer / bounded logs / page switch / cancellation / destroy / synchronous receipt / native failure cleanup passed")
 }
 
 private fun DiagnosticSdkModule.configurationOnRenderer(): io.github.gycrosskit.diagnostics.sdk.DiagnosticSdkConfiguration {

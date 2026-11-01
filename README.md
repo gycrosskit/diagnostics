@@ -1,6 +1,8 @@
 # GY CrossKit Diagnostics
 
-2026-10-25 当前候选为 Maven、已有 Native/Harmony 渠道配套 `1.0.1`；保留已存在的 `1.0.0` 标签与原摘要。下述带日期的 `1.0.0` 准备记录属于历史，本轮源码、归档和公开消费须重新验收，尚未宣称已发布。
+Kuikly 由宿主统一选择版本；组件构建基线、允许范围及消费验证边界见[功能与平台差异](docs/功能与平台差异.md#kuikly-版本与宿主选择)。
+
+当前渠道版本：Maven 与三个 Harmony HAR 为 `1.0.2`，Bugly/Umeng adapter 精确依赖 Core `1.0.2`；四个 iOS 原生 Pods 保持 `1.0.1`。实际发布和消费状态以精确 Release/Registry 收据为准；历史标签、摘要与带日期的验收记录保持原范围。
 
 > 历史准备记录：2026-10-24 版本准备：Maven、四个 iOS Git Pods 和三个 OHOS HAR 的版本元数据统一为 `1.0.0` 未发布候选，Gradle consumer 默认版本同步为 `1.0.0`。下方 rc.19 / rc.20 安装示例及已发布证据保留，不能作为 1.0.0 已发布证明；候选公开消费须等精确 tag / Release / Registry 验收。
 
