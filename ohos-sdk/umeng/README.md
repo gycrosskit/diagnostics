@@ -1,13 +1,13 @@
 # @gycrosskit/diagnostics-umeng
 
-当前包版本为 `1.0.2`；发布及精确安装状态以对应 Release/Registry 收据为准，历史 rc.20 记录保留。
+当前包版本为 `1.0.3`；发布及精确安装状态以对应 Release/Registry 收据为准，历史 rc.20 记录保留。
 
 提供可选的友盟诊断适配器，依赖同版本 diagnostics-core。
 
 **rc.19 源码包含 InternalPlugin 接入修复；旧 rc.16 不含该修复。** 安装前核验 Registry 中的精确版本；未上架时仅按 Release 摘要消费 HAR，不能把提交审核当成上架。
 
 ```bash
-ohpm install @gycrosskit/diagnostics-umeng@1.0.2
+ohpm install @gycrosskit/diagnostics-umeng@1.0.3
 ```
 
 由宿主显式选择供应商并传入配置，组件不依赖业务宿主。安装库不代表已完成设备、供应商服务或上报验收。
