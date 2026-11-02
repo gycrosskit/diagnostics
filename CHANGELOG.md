@@ -1,6 +1,6 @@
 # 更新记录
 
-## 1.0.3（Maven / 三 HAR 候选）
+## 1.0.3 （Maven / 三 HAR 候选）
 
 - 补齐 Core、Bugly、Umeng 包内当前版本更新记录，修复 OHPM 缺少当前版本 CHANGELOG 的拒绝。
 - Maven 与三个 HAR 同为 `1.0.3`，Bugly/Umeng 精确依赖 Core `1.0.3`；延续 Kuikly 回调清理与宿主可选 Renderer 范围，API 和隐私合同不变。
