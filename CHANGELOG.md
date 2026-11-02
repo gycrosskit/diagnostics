@@ -1,5 +1,11 @@
 # 更新记录
 
+## 1.0.3 （Maven / 三 HAR 候选）
+
+- 补齐 Core、Bugly、Umeng 包内当前版本更新记录，修复 OHPM 缺少当前版本 CHANGELOG 的拒绝。
+- Maven 与三个 HAR 同为 `1.0.3`，Bugly/Umeng 精确依赖 Core `1.0.3`；延续 Kuikly 回调清理与宿主可选 Renderer 范围，API 和隐私合同不变。
+- 四个 iOS 原生 Pods 保持 `1.0.1`；新版本不覆盖旧制品。构建、公开消费、审核与 Registry 安装分别验收，当前尚未发布。
+
 ## 1.0.2（Maven / 三 HAR）
 
 - Kuikly sender 持有回调资格并覆盖同步完成、取消和 dispose 清理；保留 core、存储与隐私合同。

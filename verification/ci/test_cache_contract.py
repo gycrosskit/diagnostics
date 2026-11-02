@@ -156,6 +156,7 @@ print('Metadata recovery: 11 cases; bounded exact-host TCP retries, no compilati
 
 # 验证固定 Jenkins 发布命令的版本分流，不读取已退役的 workflow。
 from jenkins.component_release_recipes import RECIPES
+from delivery.component_channels import native_source_tag
 tagged_commands = next(step['script'] for step in RECIPES['diagnostics']['macos']['steps']
                        if step['name'] == 'Verify exact tagged iOS native consumers')
 with tempfile.TemporaryDirectory() as directory:
@@ -172,23 +173,34 @@ with open(os.environ['TAGGED_CWDS'], 'a') as output:
     git.write_text('#!' + sys.executable + '\n' + r'''import os, sys
 from pathlib import Path
 args = sys.argv[1:]
-assert args == ['clone', '--depth', '1', '--branch', os.environ['VERSION'], 'https://github.com/gycrosskit/diagnostics.git', os.environ['RUNNER_TEMP'] + '/diagnostics-tagged-ios-metadata']
+assert args == ['clone', '--depth', '1', '--branch', os.environ['NATIVE_TAG'], 'https://github.com/gycrosskit/diagnostics.git', os.environ['RUNNER_TEMP'] + '/diagnostics-tagged-ios-metadata']
 Path(args[-1]).mkdir(parents=True)
 ''')
     git.chmod(0o700)
     legacy = ['0.1.0', *[f'0.2.0-rc.{version}' for version in range(1, 19)]]
-    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0', '1.0.0', '1.0.1']:
+    for version in [*legacy, '0.2.0-rc.19', '0.2.0-rc.20', '0.3.0', '1.0.0', '1.0.1', '1.0.2', '1.0.3']:
         calls = temporary / (version + '.jsonl')
+        env = {key: value for key, value in os.environ.items()
+               if key not in ('NATIVE_TAG', 'NATIVE_PACKAGE_VERSION')}
+        # 与固定发布入口一致：历史版本先跳过；现行 Maven/Native 独立选版。
+        if version not in legacy:
+            selected_version, selected_tag = native_source_tag('diagnostics', ROOT) if version in ('1.0.2', '1.0.3') else (version, version)
+            env.update(NATIVE_PACKAGE_VERSION=selected_version, NATIVE_TAG=selected_tag)
         result = subprocess.run(['bash', '-euo', 'pipefail', '-c', tagged_commands], cwd=ROOT,
-                                env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'],
+                                env={**env, 'PATH': directory + os.pathsep + os.environ['PATH'],
                                      'VERSION': version, 'TAGGED_CALLS': str(calls), 'TAGGED_CWDS': str(calls) + '.cwd',
                                      'GITHUB_WORKSPACE': str(ROOT), 'RUNNER_TEMP': str(temporary / version)},
                                 capture_output=True, text=True)
         assert result.returncode == 0, (version, result.stdout, result.stderr)
         invocations = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
         if version in legacy:
-            assert not invocations and 'skipped for ' + version in result.stdout, version
+            assert not invocations and not (temporary / version / 'diagnostics-tagged-ios-metadata').exists() and 'skipped for ' + version in result.stdout, version
         else:
-            assert len(invocations) == 1 and invocations[0][-4:] == ['env', 'TAGGED_IOS_DIAGNOSTICS=' + str(ROOT / 'ci-diagnostics/tagged-ios'), 'RUBYOPT=-r' + str(ROOT / 'scripts/verify-tagged-ios-sdk.rb'), 'pod'], version
-            assert [Path(path).resolve() for path in Path(str(calls) + '.cwd').read_text().splitlines()] == [(temporary / version / 'diagnostics-tagged-ios-metadata').resolve()]
-print('Tagged iOS release gate: legacy skips; installed pod launcher preloads exact verifier')
+            metadata = temporary / version / 'diagnostics-tagged-ios-metadata'
+            assert len(invocations) == 1 and invocations[0] == [str(ROOT / 'scripts/ci-run.py'), '--no-progress-seconds', '300',
+                '--log', str(ROOT / 'ci-diagnostics/tagged-ios.log'), '--', 'env', 'VERSION=' + selected_version,
+                'TAGGED_IOS_DIAGNOSTICS=' + str(ROOT / 'ci-diagnostics/tagged-ios'),
+                'RUBYOPT=-rEnglish -r' + str(ROOT / 'scripts/verify-tagged-ios-sdk.rb'), 'pod', '--gyc-tagged-ios-specs',
+                *[str(metadata / (name + '.podspec')) for name in ('GYDiagnosticsNative', 'GYDiagnosticsSdk', 'GYDiagnosticsBugly', 'GYDiagnosticsUmeng')]], version
+            assert [Path(path).resolve() for path in Path(str(calls) + '.cwd').read_text().splitlines()] == [metadata.resolve()]
+print('Tagged iOS release gate: legacy skips before Native lookup; independent Native tag/version, four specs and installed pod launcher preserved')

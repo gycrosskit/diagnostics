@@ -1,6 +1,6 @@
 # 可选诊断 SDK
 
-当前渠道版本：Maven 与三个 Harmony HAR 为 `1.0.2`，Bugly/Umeng adapter 精确依赖 Core `1.0.2`；四个 iOS 原生 Pods 保持 `1.0.1`。实际发布和消费状态以精确 Release/Registry 收据为准；历史标签、摘要与带日期的验收记录保持原范围。
+当前渠道候选版本：Maven 与三个 Harmony HAR 为 `1.0.3`，Bugly/Umeng adapter 精确依赖 Core `1.0.3`；四个 iOS 原生 Pods 保持 `1.0.1`。实际发布和消费状态以精确 Release/Registry 收据为准；历史标签、摘要与带日期的验收记录保持原范围。
 
 > 历史准备记录：2026-10-24：Maven、iOS Pods 与 OHOS HAR 的元数据已统一为 `1.0.0` 未发布候选，待 Jenkins 构建与精确发布消费验收；下方 rc.19 / rc.20 坐标记录既有版本，厂商依赖、授权与宿主合同不变。
 
