@@ -22,6 +22,7 @@ class NetworkCaptureTest {
         call.response(200, mapOf("Set-Cookie" to listOf("private-cookie")), """{"token":"private-token","ok":true}""")
         val records = store.records.value
         assertEquals(listOf(call.requestId, call.requestId), records.map { it.requestId })
+        assertEquals(List(2) { "https://example.test/App/SendSMS3" }, records.map { it.url })
         assertEquals(listOf("qa", "qa"), records.map { it.context })
         assertEquals(NetworkLogKind.RESPONSE, records.last().kind)
         assertEquals(200, records.last().statusCode)
@@ -51,6 +52,39 @@ class NetworkCaptureTest {
         assertNull(redactNetworkJson("[".repeat(65) + "0" + "]".repeat(65)))
         assertNull(NetworkCapture(store, { "qa" }, include = { false }).begin("GET", "https://example.test", emptyMap()))
         assertNull(NetworkCapture(store, { error("secret") }).begin("GET", "https://example.test", emptyMap()))
+        val before = store.records.value
+        assertNull(NetworkCapture(store, { "qa" }, redactUrl = { error("secret") })
+            .begin("GET", "https://example.test?token=secret", emptyMap()))
+        assertEquals(before, store.records.value)
+    }
+
+    @Test fun customUrlPolicyReceivesOriginalUrlAndCorrelatesFullRequestAndResponse() {
+        val store = NetworkLogStore<Unit>()
+        val observed = mutableListOf<String>()
+        val output = mutableListOf<String>()
+        val url = "https://user:secret@example.test/path?token=private&ok=true#fragment"
+        val capture = NetworkCapture(store, { Unit }, redactUrl = { observed += it; it }, onLog = output::add)
+        val call = assertNotNull(capture.begin("GET", url, emptyMap()))
+        call.response(200, emptyMap())
+        val records = store.records.value
+        assertEquals(listOf(url), observed)
+        assertEquals(List(2) { url }, records.map { it.url })
+        assertEquals(List(2) { call.requestId }, records.map { it.requestId })
+        assertEquals(records.map { it.message }, output)
+        assertEquals("https://user:secret@example.test/path?token=private&ok=true#fragment", url)
+    }
+
+    @Test fun customUrlPolicyCanMaskQueryBeforeLogging() {
+        val store = NetworkLogStore<Unit>()
+        val url = "https://example.test/path?token=private&ok=true"
+        val capture = NetworkCapture(store, { Unit }, redactUrl = {
+            assertEquals(url, it)
+            it.replace("token=private", "token=<redacted>")
+        })
+        val call = assertNotNull(capture.begin("GET", url, emptyMap()))
+        call.response(200, emptyMap())
+        assertEquals(List(2) { "https://example.test/path?token=<redacted>&ok=true" }, store.records.value.map { it.url })
+        assertEquals("https://example.test/path?token=private&ok=true", url)
     }
 
     @Test fun originalPositionalNamedAndTrailingLogCallbacksStillCompile() {
@@ -64,9 +98,11 @@ class NetworkCaptureTest {
         val trailing = NetworkCapture(store, { Unit }) { output += it }
         val custom = NetworkCapture(store, { Unit }, redactHeader = { _, value -> value }) { output += it }
         listOf(positional, named, trailing, custom).forEach {
-            assertNotNull(it.begin("GET", "https://example.test", emptyMap()))
+            assertNotNull(it.begin("GET", "https://example.test?token=private", emptyMap()))
         }
         assertEquals(4, output.size)
+        assertEquals(listOf("https://example.test?token=private", "https://example.test?token=private",
+            "https://example.test", "https://example.test"), store.records.value.map { it.url })
     }
 
     @Test fun headerPolicyOverridesDefaultsAndFailsClosedPerHeader() {
