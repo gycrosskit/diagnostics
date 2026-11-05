@@ -6,12 +6,14 @@ import kotlin.time.TimeSource
 /**
  * 可选网络采集接线，复用有界日志环，不创建队列或持有 HttpClient。
  * Body 默认关闭；开启后仍须提供 [redactBody]，返回 null 表示不记录。
- * URL 默认去掉 query、fragment 和 userinfo；路径可能含个人信息，由 [redactUrl] 继续处理。
+ * URL 默认去掉 query、fragment 和 userinfo；提供 [redactUrl] 时由宿主处理完整原始 URL。
  * Headers 默认按 [allowedHeaders] 放行并遮盖凭据；提供 [redactHeader] 时由宿主决定每个值。
  * [context] 应返回不可变环境值；[include] 用于排除上传日志等会递归采集的接口。
  * 回调异常只关闭相应采集，不改变网络执行。回调在网络调用线程执行，宿主不得阻塞。
  * @property maxBodyBytes 每段完整 UTF-8 文本上限（1..32 KiB）；超额整段丢弃，避免截断后无法脱敏。
  * @property captureBody 是否观察正文，适配器据此避免不必要的复制。
+ * @property redactUrl URL 策略，替代默认脱敏并收到完整原始 URL；可返回原文，抛异常则停止本次采集。
+ * 输出仍限制为 2048 字符并清除换行，不修改 HTTP 请求/响应。
  * @property redactHeader 可选的 header 策略，收到原始名称与前四个值的合并文本。
  * 非 null 时替代默认放行/凭据遮盖，可返回原文；返回 null 或抛异常仅遮盖当前 header。
  * 输出仍最多 20 个 header，名称 128 字符、值 512 字符并清除换行；不修改 HTTP 数据。
@@ -22,7 +24,7 @@ class NetworkCapture<C>(
     val maxBodyBytes: Int = 4096,
     val captureBody: Boolean = false,
     private val redactBody: (String) -> String? = { null },
-    private val redactUrl: (String) -> String = { it },
+    private val redactUrl: (String) -> String = ::networkUrlWithoutSecrets,
     private val allowedHeaders: Set<String> = setOf("content-type", "content-length", "accept"),
     private val include: (String) -> Boolean = { true },
     private val redactHeader: ((name: String, value: String) -> String?)? = null,
@@ -39,11 +41,11 @@ class NetworkCapture<C>(
     private val allowed = allowedHeaders.map(String::lowercase).toSet()
     init { require(maxBodyBytes in 1..32 * 1024) }
 
-    /** 适配器每次发送调用一次；准入失败返回 null，不保存原始 URL 或请求正文。 */
+    /** 适配器每次发送调用一次；准入失败返回 null，仅保存 URL 策略的有界输出与正文脱敏结果。 */
     fun begin(method: String, url: String, headers: Map<String, List<String>>, body: String? = null): NetworkCall<C>? {
         return try {
             if (!include(url)) return null
-            val safeUrl = redactUrl(networkUrlWithoutSecrets(url)).take(2048).singleLine()
+            val safeUrl = redactUrl(url).take(2048).singleLine()
             NetworkCall(this, context(), store.allocateRequestId(), method.take(32).singleLine(), safeUrl).also {
                 it.request(headers, body)
             }
