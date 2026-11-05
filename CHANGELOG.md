@@ -1,5 +1,11 @@
 # 更新记录
 
+## 1.0.4 （Maven / 三 HAR 候选）
+
+- 修复 KMP 网络采集 URL 策略：宿主提供的 `redactUrl` 接收完整原始 URL 并替代默认脱敏；未提供时保留默认脱敏，输出边界与异常保护不变。
+- 三个 HAR 与 Maven `1.0.4` 配套发行，Bugly/Umeng 精确依赖 Core `1.0.4`；原生 API 和供应商 SDK 版本不变。
+- 四个 iOS 原生 Pods 保持 `1.0.1`；历史标签和制品保留，构建、发布及精确消费另行验收。
+
 ## 1.0.3 （Maven / 三 HAR 候选）
 
 - 补齐 Core、Bugly、Umeng 包内当前版本更新记录，修复 OHPM 缺少当前版本 CHANGELOG 的拒绝。

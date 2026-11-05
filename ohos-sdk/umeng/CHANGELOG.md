@@ -1,5 +1,10 @@
 # 更新记录
 
+## 1.0.4 （Maven / 三 HAR 候选）
+
+- 与 Maven `1.0.4` 配套发行，原生 API 和供应商 SDK 版本不变。
+- 三个 HAR 同为 `1.0.4`，Bugly/Umeng 精确依赖 Core `1.0.4`；历史标签和制品保留，构建、发布及精确消费另行验收。
+
 ## 1.0.3 （Maven / 三 HAR 候选）
 
 - 补齐 Core、Bugly、Umeng 包内当前版本更新记录，修复 OHPM 缺少当前版本 CHANGELOG 的拒绝。
