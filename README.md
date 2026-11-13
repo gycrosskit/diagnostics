@@ -2,7 +2,7 @@
 
 Kuikly 由宿主统一选择版本；组件构建基线、允许范围及消费验证边界见[功能与平台差异](docs/功能与平台差异.md#kuikly-版本与宿主选择)。
 
-当前渠道候选版本：Maven 与三个 Harmony HAR 同为 `1.0.4`，Bugly/Umeng adapter 精确依赖 Core `1.0.4`；本次修复 KMP 网络采集 URL 策略，HAR 与 Maven `1.0.4` 配套发行，原生 API 和供应商 SDK 版本不变，四个 iOS 原生 Pods 保持 `1.0.1`。实际发布和消费状态以精确 Release/Registry 收据为准；历史标签、摘要与带日期的验收记录保持原范围。
+当前渠道版本：Maven 与三个 Harmony HAR 同为 `1.0.4`，已有[正式 Release](https://github.com/gycrosskit/diagnostics/releases/tag/1.0.4)，Bugly/Umeng adapter 精确依赖 Core `1.0.4`；本次修复 KMP 网络采集 URL 策略，HAR 与 Maven `1.0.4` 配套发行，原生 API 和供应商 SDK 版本不变，四个 iOS 原生 Pods 保持 `1.0.1`。实际发布和消费状态以精确 Release/Registry 收据为准；历史标签、摘要与带日期的验收记录保持原范围。
 
 > 历史准备记录：2026-10-24 版本准备：Maven、四个 iOS Git Pods 和三个 OHOS HAR 的版本元数据统一为 `1.0.0` 未发布候选，Gradle consumer 默认版本同步为 `1.0.0`。下方 rc.19 / rc.20 安装示例及已发布证据保留，不能作为 1.0.0 已发布证明；候选公开消费须等精确 tag / Release / Registry 验收。
 
@@ -26,7 +26,7 @@ rc.11 发布候选（2026-10-10，源自 PR #22，合入 `1f5c3abd2987a432f32037
 
 历史版本 **0.2.0-rc.12** 首次增加原子只读快照、轮转安全的 ZIP/文本导出，以及 iOS/OHOS 有界 Throwable 格式化；用法见 [机制接入](docs/机制接入.md)。可选 [Ktor / OkHttp 网络采集](docs/网络诊断.md) 和通知模块与当前 Maven 保持同版；Header/Body 策略与 Body 额度由宿主控制，默认采用安全策略；四模块 JVM / Android AAR 字节码目标固定 Java 17。rc.12 原有 Swift Package / Git Pod 配套 **0.2.0-rc.1**。rc.13 新增原生适配 Pod 和纯 ArkTS HAR；Maven rc.14/rc.15 补齐 Android 供应商依赖和 Main dispatcher；详见[可选诊断 SDK](docs/可选诊断SDK.md)。
 
-正式接入前确认对应 [Release](https://github.com/gycrosskit/diagnostics/releases/tag/0.2.0-rc.19) 和 Jenkins 精确版本远程消费验证 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
+正式接入前确认对应 [Maven/HAR `1.0.4` Release](https://github.com/gycrosskit/diagnostics/releases/tag/1.0.4) 和 Jenkins 精确版本远程消费验证 成功。源码测试、归档、公网文件与独立消费者的验收边界见 [自动回归门禁](docs/持续集成.md)；[完整审查](docs/完整审查.md) 保留 rc.5 的历史证据。
 
 ## 支持范围
 
@@ -125,10 +125,10 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:0.2.0-rc.19")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:1.0.4")
 ```
 
-系统采集独立启用。iOS 原生包用精确 Git tag `0.2.0-rc.19` 下 `Package.swift` 的 `GYDiagnosticsNative` product，或同 tag 的 Git Pod；所有 diagnostics Pods 使用同一个 Git source/tag。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
+系统采集独立启用。iOS 原生包独立固定 Git tag `1.0.1`，使用该 tag 下 `Package.swift` 的 `GYDiagnosticsNative` product，或同 tag 的 Git Pod；原生 Tag 与 Maven/HAR `1.0.4` 分别版本化，精确消费须分别核验；所有 diagnostics Pods 使用同一个 Git source/tag。不要同时把 `ios-support` 源码手动加入宿主 target；添加 Maven 依赖不会安装 Swift 采集器。新旧 Swift API 共用一个进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
 
 ## 最小使用
 
