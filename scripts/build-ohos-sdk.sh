@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
-# 仅在远程 Ubuntu runner 编译；宿主不从源码或本地工程生产替代 HAR。
+# 编译本库生产 HAR，使用受信入口提供的官方工具链。
 set -euo pipefail
-[[ "$(uname -s)" == Linux && ( "${GITHUB_ACTIONS:-}" == true || -n "${JENKINS_URL:-}" ) ]] || {
-  echo 'OHOS SDK HAR builds require a remote GitHub Actions or Jenkins Linux runner' >&2; exit 2;
-}
 TASK_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TASK_MODE="${1:-package}"
+[[ $# -le 1 && "$TASK_MODE" =~ ^(compile|package)$ ]] || { echo 'Usage: build-ohos-sdk.sh [compile|package]' >&2; exit 2; }
 TASK_OUTPUT="$TASK_ROOT/build/ohos-sdk"
+if [[ "$TASK_MODE" == compile ]]; then
+  # 编译副产物可复用；与不可覆盖的发布归档分开，保留已有候选字节。
+  TASK_OUTPUT="$TASK_ROOT/build/ohos-sdk-compile"
+else
+  [[ ! -e "$TASK_OUTPUT" ]] || { echo "HAR outputs already exist" >&2; exit 2; }
+fi
 mkdir -p "$TASK_OUTPUT"
+if [[ -z "${OHOS_CLT_HOME:-}" && -d "$TASK_OUTPUT/tools/command-line-tools" ]]; then
+  OHOS_CLT_HOME="$TASK_OUTPUT/tools/command-line-tools"
+fi
 if [[ -z "${OHOS_CLT_HOME:-}" ]]; then
   : "${OHOS_CLT_URL:?Provide the official Huawei Linux x64 CLT download URL}"
   : "${OHOS_CLT_SHA256:?Provide the reviewed official CLT SHA-256}"
