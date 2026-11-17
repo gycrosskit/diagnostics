@@ -30,7 +30,7 @@ class JitPackInstallTest(unittest.TestCase):
         self.archive()
 
     def archive(self, members=None):
-        with tarfile.open(self.staging / self.name, "w:gz") as bundle:
+        with tarfile.open(str(self.staging / self.name), "w:gz") as bundle:
             for name, link in members or [("com/github/gycrosskit/probe/1.2.3/probe.pom", None)]:
                 item = tarfile.TarInfo(name)
                 payload = b"verified artifact"
@@ -44,15 +44,15 @@ class JitPackInstallTest(unittest.TestCase):
         raw = (self.staging / self.name).read_bytes()
         self.receipt["archive"] = dict(name=self.name, size=len(raw), sha256=hashlib.sha256(raw).hexdigest())
 
-    def run_verify(self, *, raw_receipt=None, checksum=None):
-        (self.staging / "source-receipt.json").write_text(
-            json.dumps(self.receipt) if raw_receipt is None else raw_receipt)
+    def run_verify(self, *, raw_receipt=None, checksum=None, destinations=None):
+        raw = json.dumps(self.receipt).encode("utf-8") if raw_receipt is None else raw_receipt
+        (self.staging / "source-receipt.json").write_bytes(raw.encode("utf-8") if isinstance(raw, str) else raw)
         (self.staging / "SHA256SUMS").write_bytes(
             (self.receipt["archive"]["sha256"] + "  " + self.name + "\n").encode()
             if checksum is None else checksum)
         return subprocess.run([sys.executable, "-c", VERIFY, self.repository, "1.2.3",
-            "a" * 40, "b" * 40, str(self.staging), str(self.root / "m2"), str(self.root / "build")],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            "a" * 40, "b" * 40, str(self.staging), *[str(path) for path in (destinations or (self.root / "m2", self.root / "build"))]],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
     def test_matching_release_extracts_frozen_bytes_to_both_destinations(self):
         result = self.run_verify()
@@ -60,6 +60,33 @@ class JitPackInstallTest(unittest.TestCase):
         for destination in ("m2", "build"):
             self.assertEqual((self.root / destination / "com/github/gycrosskit/probe/1.2.3/probe.pom").read_bytes(),
                              b"verified artifact")
+
+    def test_missing_nested_destinations_extract_valid_archive(self):
+        destinations = (self.root / "missing/one/m2", self.root / "missing/two/build")
+        result = self.run_verify(destinations=destinations)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for destination in destinations:
+            self.assertEqual((destination / "com/github/gycrosskit/probe/1.2.3/probe.pom").read_bytes(),
+                             b"verified artifact")
+
+    def test_existing_destination_symlink_cannot_escape(self):
+        outside = self.root / "outside"
+        outside.mkdir()
+        destination = self.root / "m2"
+        destination.mkdir()
+        (destination / "com").symlink_to(outside, target_is_directory=True)
+        result = self.run_verify()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Archive escapes destination", result.stderr)
+        self.assertEqual(list(outside.iterdir()), [])
+        self.assertFalse((self.root / "build").exists())
+
+    def test_invalid_utf8_receipt_fails_before_extract(self):
+        result = self.run_verify(raw_receipt=b"{\xff}")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("UnicodeDecodeError", result.stderr)
+        self.assertFalse((self.root / "m2").exists())
+        self.assertFalse((self.root / "build").exists())
 
     def test_wrong_identity_hash_or_size_fails_before_extract(self):
         original = json.dumps(self.receipt)

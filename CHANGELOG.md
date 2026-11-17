@@ -2,6 +2,7 @@
 
 ## 1.0.6 （全渠道统一候选）
 
+- 修复 JitPack 既有 Python 3.5 环境的发布回执 UTF-8 JSON 解码与路径兼容；身份、重复字段、摘要和归档逃逸校验保持严格，生产功能与依赖不变。
 - Maven、四个 iOS Git Pods / Swift Package 与三个 HAR 准备统一为 `1.0.6`，同步独立消费默认值；Bugly/Umeng adapter 精确依赖 Core `1.0.6`。
 - 保留 `1.0.5` 的 Tag、GitHub Maven 资产及发布记录；该版本仍有旧 JitPack `tagNotFound`，不删除缓存或覆盖旧版。
 - 本轮更新版本声明、文档及本地 iOS 构建配置（编译目标 iOS 15、静态 framework 联编），生产功能、厂商 SDK、Renderer 基线及隐私合同不变；新 Tag、发布和远程消费尚未执行。
