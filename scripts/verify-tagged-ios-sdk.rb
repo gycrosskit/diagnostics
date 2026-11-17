@@ -138,13 +138,13 @@ end
 fixture = 'verification-consumer/ios-native'
 fixture_files = %w[Package.swift Sources/NativeConsumer.swift]
 manifest = File.read(File.join(fixture, 'Package.swift'))
-default_dependency = 'exact: "0.2.0-rc.1"'
+default_dependency = 'exact: "1.0.6"'
 abort 'Native fixture default dependency changed' unless manifest.scan(default_dependency).length == 1
 if check_only
   puts 'Tagged iOS Pod and SwiftPM source/version contract passed; no public compilation'
   exit
 end
-# Keep the fixture's historical default; only the isolated release consumer pins this tag.
+# Pin the isolated consumer to the requested immutable tag without changing the fixture.
 stage = Dir.mktmpdir('diagnostics-tagged-spm-', ENV.fetch('RUNNER_TEMP'))
 fixture_hashes = fixture_files.to_h do |relative|
   original = File.binread(File.join(fixture, relative))
