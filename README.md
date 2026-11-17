@@ -2,7 +2,7 @@
 
 Kuikly 由宿主统一选择版本；组件构建基线、允许范围及消费验证边界见[功能与平台差异](docs/功能与平台差异.md#kuikly-版本与宿主选择)。
 
-统一版本候选为 `1.0.6`：Maven、四个 iOS Git Pods / Swift Package 与三个 Harmony HAR 同版，Bugly/Umeng adapter 精确依赖 Core `1.0.6`。`1.0.5` 的 Tag、GitHub Maven 发布资产和记录保留；该版本的 JitPack 仍返回旧 `tagNotFound`，本轮使用新版本，不删除缓存或覆盖既有制品。本次只改版本声明和接入示例，生产功能、厂商 SDK、Renderer 基线和隐私合同不变。新版本尚未发布，须先本地验证，再创建 Tag 并经 `component-ci/release` 发布，各渠道远程消费单独确认。
+统一版本候选为 `1.0.6`：Maven、四个 iOS Git Pods / Swift Package 与三个 Harmony HAR 同版，Bugly/Umeng adapter 精确依赖 Core `1.0.6`。`1.0.5` 的 Tag、GitHub Maven 发布资产和记录保留；该版本的 JitPack 仍返回旧 `tagNotFound`，本轮使用新版本，不删除缓存或覆盖既有制品。本次更新版本声明、接入示例及本地 iOS 构建配置，生产功能、厂商 SDK、Renderer 基线和隐私合同不变。新版本尚未发布，须先本地验证，再创建 Tag 并经 `component-ci/release` 发布，各渠道远程消费单独确认。
 
 Harmony 后续仅发布到受信私 OHPM，按 Core、Bugly、Umeng 的生产依赖顺序交付；当前私库三个包均尚不存在，不把历史 HAR Release 或旧公网记录算作私库发布完成。本地构建沿用项目入口，日常 CI 不串联测试或独立消费者；正式发布统一使用新版 `component-ci/release`，本地 package 不创建 Tag 或上传。
 
