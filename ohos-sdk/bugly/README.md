@@ -1,11 +1,11 @@
 # @gycrosskit/diagnostics-bugly
 
-当前包候选版本为 `1.0.6`，尚未发布；Harmony 仅使用受信私 OHPM，安装前由宿主将 `@gycrosskit` scope 配置到私仓。发布及精确安装状态以对应 Release/Registry 收据为准，历史 rc.20 记录保留。
+当前包候选版本为 `1.0.7`，尚未发布；Harmony 仅使用受信私 OHPM，安装前由宿主将 `@gycrosskit` scope 配置到私仓。发布及精确安装状态以对应 Release/Registry 收据为准，历史 rc.20 记录保留。
 
 提供可选的 Bugly 诊断适配器，依赖同版本 diagnostics-core。
 
 ```bash
-ohpm install @gycrosskit/diagnostics-bugly@1.0.6
+ohpm install @gycrosskit/diagnostics-bugly@1.0.7
 ```
 
 由宿主显式选择供应商并传入配置，组件不依赖业务宿主。安装库不代表已完成设备、供应商服务或上报验收。

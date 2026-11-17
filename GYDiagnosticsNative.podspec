@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name = 'GYDiagnosticsNative'
-  spec.version = '1.0.6'
+  spec.version = '1.0.7'
   spec.summary = '应用私有目录中的 MetricKit 与 NSException 原生采集器'
   spec.homepage = 'https://github.com/gycrosskit/diagnostics'
   spec.license = { :type => 'Apache-2.0', :file => 'LICENSE' }

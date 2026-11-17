@@ -1,5 +1,11 @@
 # 更新记录
 
+## 1.0.7 （全渠道统一候选）
+
+- 统一 Maven、四个 iOS Git Pods / Swift Package 和三个私仓 HAR 为 `1.0.7`，Bugly/Umeng 精确依赖同版 Core；保留旧 Tag、制品、摘要和记录。
+- 沿用既有 iOS 构建配置及 Python 3.5 发布入口修复，生产功能、厂商 SDK、Renderer 基线与隐私合同不变。
+- 本地验证通过后先独立发布 Maven 并匿名核验三份 GitHub 资产，再首次验证 JitPack，随后发布同版私仓 HAR 和 iOS；候选当前未发布。
+
 ## 1.0.6 （全渠道统一候选）
 
 - 修复 JitPack 既有 Python 3.5 环境的发布回执 UTF-8 JSON 解码与路径兼容；身份、重复字段、摘要和归档逃逸校验保持严格，生产功能与依赖不变。
