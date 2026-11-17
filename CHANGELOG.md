@@ -1,5 +1,18 @@
 # 更新记录
 
+## 1.0.6 （全渠道统一候选）
+
+- 修复 JitPack 既有 Python 3.5 环境的发布回执 UTF-8 JSON 解码与路径兼容；身份、重复字段、摘要和归档逃逸校验保持严格，生产功能与依赖不变。
+- Maven、四个 iOS Git Pods / Swift Package 与三个 HAR 准备统一为 `1.0.6`，同步独立消费默认值；Bugly/Umeng adapter 精确依赖 Core `1.0.6`。
+- 保留 `1.0.5` 的 Tag、GitHub Maven 资产及发布记录；该版本仍有旧 JitPack `tagNotFound`，不删除缓存或覆盖旧版。
+- 本轮更新版本声明、文档及本地 iOS 构建配置（编译目标 iOS 15、静态 framework 联编），生产功能、厂商 SDK、Renderer 基线及隐私合同不变；新 Tag、发布和远程消费尚未执行。
+
+## 1.0.5（全渠道统一候选）
+
+- Maven、四个 iOS Git Pods / Swift Package 与三个 HAR 准备统一为 `1.0.5`，同步独立消费默认值；HAR adapter 精确依赖同版 Core。
+- 已发布 root `1.0.4` 内的 Pod 元数据仍为 `1.0.1`，沿用现行数字 tag / Pod 同版合同必须使用新版本，不覆盖历史标签、归档或摘要。
+- 生产功能、原生 API、厂商 SDK 和隐私合同不变；候选尚未发布，构建及各渠道精确消费分别验收。
+
 ## 1.0.4 （Maven / 三 HAR 候选）
 
 - 修复 KMP 网络采集 URL 策略：宿主提供的 `redactUrl` 接收完整原始 URL 并替代默认脱敏；未提供时保留默认脱敏，输出边界与异常保护不变。

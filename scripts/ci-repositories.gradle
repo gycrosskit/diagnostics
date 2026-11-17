@@ -28,13 +28,11 @@ for (int attempt = 1; attempt <= 3; attempt++) {
     }
 }
 
-// 定制 Kotlin 保留 Eazytec；标准 AGP/AAPT 从官方解析，避免镜像 POM 存在但 classifier 缺失。
-// 国内 Aliyun 镜像 502 会使 Gradle 禁用仓库，因此仅在 CI 中移除。
+// Eazytec 仅解析定制 Kotlin；其余依赖沿用 settings 中声明的镜像和官方仓库。
 gradle.settingsEvaluated { settings ->
     [settings.pluginManagement.repositories, settings.dependencyResolutionManagement.repositories].each { repositories ->
         repositories.withType(org.gradle.api.artifacts.repositories.MavenArtifactRepository).matching { it.url.host == 'maven.eazytec-cloud.com' }.all {
             content { includeVersionByRegex('.*', '.*', '.*-(1\\.0\\.0|1\\.1\\.0-04)') }
         }
-        repositories.removeAll { it instanceof org.gradle.api.artifacts.repositories.MavenArtifactRepository && it.url.host == 'maven.aliyun.com' }
     }
 }
