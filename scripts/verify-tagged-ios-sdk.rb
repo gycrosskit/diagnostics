@@ -138,7 +138,7 @@ end
 fixture = 'verification-consumer/ios-native'
 fixture_files = %w[Package.swift Sources/NativeConsumer.swift]
 manifest = File.read(File.join(fixture, 'Package.swift'))
-default_dependency = 'exact: "1.0.5"'
+default_dependency = 'exact: "1.0.6"'
 abort 'Native fixture default dependency changed' unless manifest.scan(default_dependency).length == 1
 if check_only
   puts 'Tagged iOS Pod and SwiftPM source/version contract passed; no public compilation'

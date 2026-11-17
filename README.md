@@ -2,13 +2,13 @@
 
 Kuikly 由宿主统一选择版本；组件构建基线、允许范围及消费验证边界见[功能与平台差异](docs/功能与平台差异.md#kuikly-版本与宿主选择)。
 
-统一版本候选为 `1.0.5`：Maven、四个 iOS Git Pods / Swift Package 与三个 Harmony HAR 同版，Bugly/Umeng adapter 精确依赖 Core `1.0.5`。旧 root tag `1.0.4` 已固定 Pod `1.0.1`，无法在不改写标签的前提下补成同号，因此使用最小未占用版本；本次不改变生产功能、厂商 SDK 或隐私合同。各渠道尚未发布，需分别完成构建与精确公开消费；历史标签、归档及摘要保持不变。
+统一版本候选为 `1.0.6`：Maven、四个 iOS Git Pods / Swift Package 与三个 Harmony HAR 同版，Bugly/Umeng adapter 精确依赖 Core `1.0.6`。`1.0.5` 的 Tag、GitHub Maven 发布资产和记录保留；该版本的 JitPack 仍返回旧 `tagNotFound`，本轮使用新版本，不删除缓存或覆盖既有制品。本次只改版本声明和接入示例，生产功能、厂商 SDK、Renderer 基线和隐私合同不变。新版本尚未发布，须先本地验证，再创建 Tag 并经 `component-ci/release` 发布，各渠道远程消费单独确认。
 
 Harmony 后续仅发布到受信私 OHPM，按 Core、Bugly、Umeng 的生产依赖顺序交付；当前私库三个包均尚不存在，不把历史 HAR Release 或旧公网记录算作私库发布完成。本地构建沿用项目入口，日常 CI 不串联测试或独立消费者；正式发布统一使用新版 `component-ci/release`，本地 package 不创建 Tag 或上传。
 
 > 历史准备记录：2026-10-24 版本准备：Maven、四个 iOS Git Pods 和三个 OHOS HAR 的版本元数据统一为 `1.0.0` 未发布候选，Gradle consumer 默认版本同步为 `1.0.0`。下方 rc.19 / rc.20 安装示例及已发布证据保留，不能作为 1.0.0 已发布证明；候选公开消费须等精确 tag / Release / Registry 验收。
 
-构建、回归、打包和发布消费的迁移目标为 Jenkins，待本轮按源码/CI SHA 与准确构建链接实跑验收。本机只运行 Python 3 标准库、shell 语法和文档轻量检查，不执行 Gradle、Swift/Xcode 或 Hvigor。源码 verify 入口为[统一远程验证（Jenkins）](https://github.com/gycrosskit/.github/blob/main/docs/统一远程验证.md)，候选冻结/私有消费与精确 Tag/候选公开消费分别按[发布流程](https://github.com/gycrosskit/.github/blob/main/docs/发布流程.md)使用独立 package/release Job；原 Actions 配置已退出使用，历史运行结果不代算新候选。
+日常编译和打包调用本项目 `scripts/build.sh`，正式发布统一使用 `component-ci/release`，不串联 MR、测试或独立消费者。本地 SDK 验证、远程发布、精确消费和设备验收分别记录，历史运行结果不代算新候选。原 Actions 配置已退出使用，旧版本的操作与验收记录仅供历史复现。
 
 本库提供 Core、可选网络/通知及 Bugly / 友盟适配，原生宿主和 Kuikly 复用公开能力。三端入口、公开功能组和设备验收边界见[功能与平台差异](docs/功能与平台差异.md)。
 
@@ -127,10 +127,10 @@ dependencyResolutionManagement {
     }
 }
 // commonMain.dependencies
-implementation("com.github.gycrosskit.diagnostics:diagnostics-core:1.0.5")
+implementation("com.github.gycrosskit.diagnostics:diagnostics-core:1.0.6")
 ```
 
-以上 Maven `1.0.5` 坐标是未发布候选，公开前可继续使用 Maven `1.0.4`。系统采集独立启用：候选发布后，iOS 使用精确 Git tag `1.0.5` 下的 `GYDiagnosticsNative` Swift Package product 或同 tag 的 Git Pods，发布前沿用 `1.0.1`。所有 diagnostics Pods 使用同一个 Git source/tag；不要同时把 `ios-support` 源码手动加入宿主 target。添加 Maven 依赖不会安装 Swift 采集器，新旧 Swift API 共用进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
+以上 Maven `1.0.6` 坐标是未发布候选，公开前可继续使用 Maven `1.0.4`。系统采集独立启用：候选发布后，iOS 使用精确 Git tag `1.0.6` 下的 `GYDiagnosticsNative` Swift Package product 或同 tag 的 Git Pods，发布前沿用 `1.0.1`。所有 diagnostics Pods 使用同一个 Git source/tag；不要同时把 `ios-support` 源码手动加入宿主 target。添加 Maven 依赖不会安装 Swift 采集器，新旧 Swift API 共用进程采集所有者，不能同时启动。详见[原生采集接入](docs/原生采集接入.md)。
 
 ## 最小使用
 
