@@ -31,7 +31,7 @@ if [[ "$operation" == compile ]]; then
       cat > "$native_output/Podfile" <<'POD'
 install! 'cocoapods', :integrate_targets => false
 platform :ios, '15.0'
-use_frameworks!
+use_frameworks! :linkage => :static
 target 'NativeCompile' do
   pod ENV.fetch('GYC_IOS_POD'), :path => ENV.fetch('GYC_IOS_SOURCE')
   if %w[GYDiagnosticsBugly GYDiagnosticsUmeng].include?(ENV.fetch('GYC_IOS_POD'))
@@ -42,7 +42,7 @@ POD
       (cd "$native_output" && pod install)
       xcodebuild -project "$native_output/Pods/Pods.xcodeproj" -scheme "$native_pod" \
         -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' \
-        -derivedDataPath "$native_output/DerivedData" CODE_SIGNING_ALLOWED=NO build
+        -derivedDataPath "$native_output/DerivedData" CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=15.0 build
     done
   fi
   if [[ "$platform" == harmony ]]; then
