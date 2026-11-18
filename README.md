@@ -1,5 +1,7 @@
 # GY CrossKit Diagnostics
 
+新版 Maven 发布由 Jenkins 生成同版本归档、`source-receipt.json` 和 `SHA256SUMS`。JitPack 核对标签来源、归档尺寸和摘要后安装同一份制品。历史发布按原版本 Tag 复验。
+
 Kuikly 由宿主统一选择版本；组件构建基线、允许范围及消费验证边界见[功能与平台差异](docs/功能与平台差异.md#kuikly-版本与宿主选择)。
 
 统一版本候选为 `1.0.7`：Maven、四个 iOS Git Pods / Swift Package 与三个 Harmony HAR 同版，Bugly/Umeng adapter 精确依赖 Core `1.0.7`。保留 `1.0.6` 的 Tag、三个已发布私仓 HAR 和全部原记录；该版本的 JitPack 已缓存缺少 GitHub Maven 资产导致的构建失败，不删除缓存、不覆盖既有版本。本轮仅更新版本声明和发布说明，沿用已验证的 iOS 构建配置及 Python 3.5 归档校验修复，生产功能、厂商 SDK、Renderer 基线和隐私合同不变。新版本先完成本地验证，再经 `component-ci/release` 独立 Maven 任务发布并匿名核验三份 GitHub 资产；首次 JitPack 消费成功后再发布同版私仓 HAR 和 iOS 渠道。

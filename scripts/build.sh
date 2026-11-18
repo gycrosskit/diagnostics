@@ -63,4 +63,5 @@ case "$2" in
 esac
 cd ohos-sdk
 if [[ "${HARMONY_DEPENDENCIES_READY:-false}" != true ]]; then "${HARMONY_OHPM:-ohpm}" install --all; fi
-exec bash "${HARMONY_HVIGOR:-hvigorw}" --mode module -p "module=$module@default" -p product=default -p buildMode=release assembleHar --no-daemon
+hvigor="$(command -v "${HARMONY_HVIGOR:-hvigorw}")"
+exec bash "$hvigor" --mode module -p "module=$module@default" -p product=default -p buildMode=release assembleHar --no-daemon

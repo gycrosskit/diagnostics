@@ -6,6 +6,8 @@ repository="${1:?Pass the component repository name}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9]+([.-][A-Za-z0-9]+)*)?$ ]] || { echo 'Invalid immutable version' >&2; exit 1; }
 commit="$(git -c safe.directory="$PWD" rev-parse --verify HEAD)"
 tree="$(git -c safe.directory="$PWD" rev-parse --verify 'HEAD^{tree}')"
+destinations=("$HOME/.m2/repository" "$PWD/build/release-maven")
+if [[ $# == 2 ]]; then destinations=("$2"); elif [[ $# != 1 ]]; then exit 2; fi
 archive="${repository}-maven.tar.gz"
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
@@ -16,7 +18,7 @@ for name in "$archive" source-receipt.json SHA256SUMS; do
   curl -fL --retry 3 --connect-timeout 30 --max-time 300 --max-filesize "$maximum" -o "$staging/$name" "$release/$name"
 done
 # 同次受管 Release 的来源和摘要绑定冻结原件，不重编或沿用旧源码摘要。
-python3 -I - "$repository" "$VERSION" "$commit" "$tree" "$staging" "$HOME/.m2/repository" "$PWD/build/release-maven" <<'VERIFY'
+python3 -I - "$repository" "$VERSION" "$commit" "$tree" "$staging" "${destinations[@]}" <<'VERIFY'
 import hashlib, json, os, re, sys, tarfile
 from pathlib import Path, PurePosixPath
 repository, version, commit, tree, staging, *destinations = sys.argv[1:]
