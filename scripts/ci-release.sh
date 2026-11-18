@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+cd "$(dirname "$0")/.."
 : "${VERSION:?Provide an immutable release tag}"
 [[ "$VERSION" =~ ^[0-9][0-9A-Za-z._-]*$ ]] || { echo 'Invalid release tag' >&2; exit 1; }
-checksum="$(awk -v version="$VERSION" '$1 == version {print $2}' release-checksums.txt)"
-[[ "$checksum" =~ ^[a-f0-9]{64}$ ]] || { echo "No verified checksum for $VERSION" >&2; exit 1; }
 staging="$(mktemp -d)"
 preserve_evidence() {
   status=$?
@@ -14,20 +13,13 @@ preserve_evidence() {
   exit "$status"
 }
 trap preserve_evidence EXIT
-archive="$staging/diagnostics-maven.tar.gz"
-curl -fsSL --retry 3 --connect-timeout 30 --max-time 300 -o "$archive" "https://github.com/gycrosskit/diagnostics/releases/download/$VERSION/diagnostics-maven.tar.gz"
-echo "$checksum  $archive" | shasum -a 256 -c -
-python3 - "$archive" "$staging/maven" <<'EXTRACT'
-import sys, tarfile
-from pathlib import Path
-archive, destination = sys.argv[1:]
-root = Path(destination).resolve()
-with tarfile.open(archive) as bundle:
-    for item in bundle.getmembers():
-        assert item.isfile() or item.isdir(), f"Unexpected archive member: {item.name}"
-        assert (root / item.name).resolve().is_relative_to(root), item.name
-    bundle.extractall(root)
-EXTRACT
+# 从不可变版本 Tag 取得提交和 tree，沿用 JitPack 的回执与归档校验。
+repo_root="$PWD"
+git init -q "$staging/tag"
+git -C "$staging/tag" fetch -q --no-tags --depth=1 https://github.com/gycrosskit/diagnostics.git "refs/tags/$VERSION"
+git -C "$staging/tag" checkout -q --detach FETCH_HEAD
+commit="$(git -C "$staging/tag" rev-parse --verify HEAD)"
+(cd "$staging/tag" && bash "$repo_root/jitpack-install.sh" diagnostics "$staging/maven")
 modules=diagnostics-core,diagnostics-dingtalk
 jvm_limit=()
 case "$VERSION" in
@@ -46,6 +38,5 @@ import sys
 print(','.join(sorted(p.parent.parent.name for p in Path(sys.argv[1]).rglob('*.module') if p.parent.name == sys.argv[2])))
 PUBLICATIONS
 )"
-tag_sha="$(git ls-remote --tags https://github.com/gycrosskit/diagnostics.git "refs/tags/$VERSION" "refs/tags/$VERSION^{}" | awk '$2 ~ /\^\{\}$/ {peeled=$1} {direct=$1} END {print peeled ? peeled : direct}')"
-[[ "$tag_sha" =~ ^[a-f0-9]{40}$ ]] || { echo 'Cannot resolve immutable tag' >&2; exit 1; }
-python3 scripts/check-public-maven.py --repo diagnostics --version "$VERSION" --commit "$tag_sha" --expected-publications "$publications" --output-dir "${CI_DIAGNOSTICS_DIR:-ci-diagnostics}/public"
+[[ "$commit" =~ ^[a-f0-9]{40}$ ]] || { echo 'Cannot resolve immutable tag' >&2; exit 1; }
+python3 scripts/check-public-maven.py --repo diagnostics --version "$VERSION" --commit "$commit" --expected-publications "$publications" --output-dir "${CI_DIAGNOSTICS_DIR:-ci-diagnostics}/public"
