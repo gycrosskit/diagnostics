@@ -1,0 +1,412 @@
+#AOCI-CODE-VOLUME: 1
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/===
+.gitattributes[FV5T]: F:约束文本检出为LF以保持AOCI原始字节基线跨平台一致 | R:- | A:- | S:二进制由Git自动识别不转换
+.gitignore[FV4T]: F:排除构建缓存、平台产物及机器本地MCP配置 | R:- | A:- | S:-
+AGENTS.md[SG7S]: F:规定诊断组件评审、存储所有权、隐私边界及AOCI认知维护合同 | R:code:docs/开发与验证.md | A:- | S:只按确认的稳定原批次删除，采集错误不得改变HTTP流或业务结果；原始凭据不得进入日志
+CHANGELOG.md[SV4T]: F:记录诊断功能及各渠道版本候选和发布状态 | R:code:README.md | A:- | S:1.0.7为统一候选，旧Tag及制品身份不可覆盖
+GYDiagnosticsBugly.podspec[FV7T]: F:声明iOS Bugly适配Pod、共享Core精确版本及固定厂商SDK依赖 | R:code:GYDiagnosticsSdk.podspec | A:GYDiagnosticsBugly,GYDiagnosticsProvider | S:供应商模块统一名GYDiagnosticsProvider且互斥；不用DefaultStorage以免与宿主静态MMKV冲突
+GYDiagnosticsNative.podspec[FV6T]: F:将MetricKit与NSException Swift采集器打包为iOS14起Git Pod | R:code:ios-support/GYDiagnosticCollector.swift | A:GYDiagnosticsNative | S:原生包独立安装，Maven不能代替它
+GYDiagnosticsSdk.podspec[FV6T]: F:声明iOS15起的供应商中性SDK配置和生命周期Core Pod | R:code:GYDiagnosticsBugly.podspec,code:GYDiagnosticsUmeng.podspec | A:GYDiagnosticsSdk | S:-
+GYDiagnosticsUmeng.podspec[FV7T]: F:声明友盟适配Pod、精确Core版本和UMCommon/UMDevice/UMAPM固定依赖 | R:code:GYDiagnosticsSdk.podspec | A:GYDiagnosticsUmeng,GYDiagnosticsProvider | S:公开vendor头通过non-modular include设置编译，不能与另一个同名Provider模块并装
+LICENSE[SG3M]: F:声明Apache2.0许可的使用、分发、专利及免责条件 | R:- | A:- | S:-
+Package.swift[FV6T]: F:将ios-support声明为iOS14起的独立Swift原生采集库 | R:code:ios-support/GYDiagnosticCollector.swift | A:GYDiagnosticsNative | S:SPM仅原生采集，不包含可选供应商适配Pod
+README.md[SG8M]: F:说明私有有界诊断存储、稳定批次、平台采集及可选网络和供应商的模块关系与渠道状态 | R:code:docs/功能与平台差异.md,code:docs/接入指南.md,code:docs/可选诊断SDK.md | A:- | S:默认none不引入供应商SDK，隐私、后台调度、分享上传和确认删除归宿主；OS可能延迟或不交付报告，候选与发布消费分开验收
+SOURCE.md[SG4T]: F:记录宿主授权来源、通用实现归属及Apache许可范围 | R:code:LICENSE | A:- | S:许可只覆盖本仓通用实现，业务策略和上传未移入组件
+VALIDATION.md[SV4S]: F:保存历史发布、归档摘要、公开Maven及跨端独立消费验收证据 | R:code:README.md | A:- | S:历史精确版本不证明当前候选、系统投递或设备业务验收
+build.gradle.kts[FV6T]: F:固定Kotlin和AGP并为各模块配置可覆盖组版本、Maven许可与主页 | R:code:settings.gradle.kts | A:- | S:默认候选1.0.7，GROUP和VERSION可由受信构建覆盖
+gradle.properties[FV4T]: F:配置UTF8 Gradle堆、AndroidX、Native不可用目标处理和单worker | R:- | A:- | S:-
+gradlew[EV4S]: F:解析Java环境和平台路径后启动Gradle Wrapper | R:code:gradle/wrapper/gradle-wrapper.properties | A:GradleWrapperMain | S:-
+gradlew.bat[EV4T]: F:在Windows选择Java并启动Gradle Wrapper | R:code:gradle/wrapper/gradle-wrapper.properties | A:GradleWrapperMain | S:-
+jitpack-install.sh[OV8T]: F:下载冻结Maven归档并核验源码身份、来源回执、摘要及安全解包边界后安装 | R:code:jitpack.yml | A:- | S:不可变VERSION及sha/tree精确匹配Tag；拒绝重复字段、链接/穿越/重复成员和超限，不重新编译
+jitpack-metadata.py[OV7T]: F:校验后移除JitPack不支持的源码和空资源变体并同步重定向与摘要 | R:code:scripts/archive-prebuilt.sh | A:normalize | S:全量验证后才改写，非空资源或坏目标失败，避免部分改写
+jitpack.yml[FV5T]: F:指定JDK21并通过冻结归档安装器提供JitPack发布内容 | R:code:jitpack-install.sh | A:- | S:-
+settings.gradle.kts[FV8T]: F:登记七个诊断模块和依赖仓库边界 | R:code:build.gradle.kts | A:- | S:禁止项目自加仓库，Eazytec只匹配定制Kotlin，Aliyun不代理Tencent，避免供应商依赖错误来源
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-bugly/===
+build.gradle.kts[FV7T]: F:配置Android Bugly适配发布、Core导出、真实供应商依赖和Robolectric测试 | R:code:diagnostics-bugly/consumer-rules.pro,code:diagnostics-bugly/src/androidMain/AndroidManifest.xml | A:diagnostics-bugly | S:补齐厂商POM遗漏okhttp-sse依赖供R8解析，Java17、minSdk24
+consumer-rules.pro[FV6T]: F:保留ServiceLoader按名称实例化的Bugly无参工厂 | R:code:diagnostics-bugly/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/bugly/BuglyAndroidDiagnosticSdkFactory.kt | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-bugly/src/androidMain/===
+AndroidManifest.xml[FI7T]: F:从合并Manifest移除Bugly启动性能自动Provider | R:code:diagnostics-bugly/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/bugly/BuglyDiagnosticSdkBridge.kt | A:- | S:防止SDK在隐私授权前自动初始化未接入的性能采集
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-bugly/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/bugly/===
+BuglyAndroidDiagnosticSdkFactory.kt[IE7T]: F:提供标准SPI无参工厂创建Android Bugly桥 | R:code:diagnostics-bugly/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/bugly/BuglyDiagnosticSdkBridge.kt | A:BuglyAndroidDiagnosticSdkFactory.create | S:创建不初始化厂商SDK，仍须Runtime隐私准入
+BuglyDiagnosticSdkBridge.kt[IO8T]: F:在授权配置下初始化Bugly崩溃与TD诊断日志并映射过滤后的业务日志级别 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkConfiguration.kt | A:BuglyDiagnosticSdkBridge,crashOnlyBuglyBuilder,remoteLogConfiguration | S:先日志后崩溃避免部分初始化；性能请求拒绝且预先移除固定SDK monitor，屏蔽SDK自身诊断日志；私有缓存单卷5MiB/1天/厂商最低总量200MiB
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-bugly/src/androidMain/resources/META-INF/services/===
+io.github.gycrosskit.diagnostics.sdk.AndroidDiagnosticSdkFactory[FE6T]: F:登记Bugly Android SDK工厂的ServiceLoader实现类 | R:code:diagnostics-bugly/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/bugly/BuglyAndroidDiagnosticSdkFactory.kt | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-bugly/src/androidUnitTest/kotlin/io/github/gycrosskit/diagnostics/bugly/===
+BuglyConfigurationTest.kt[TO7S]: F:核对真实Bugly依赖、性能monitor关闭、私有缓存、缺凭据及SPI创建的隐私边界 | R:code:diagnostics-bugly/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/bugly/BuglyDiagnosticSdkBridge.kt | A:BuglyConfigurationTest | S:不实际初始化远端服务，disabled或失败不能替换现有崩溃handler
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/===
+build.gradle.kts[FV7T]: F:配置Core Android/JVM/iOS/OHOS目标、有界IO及协程依赖和staging发布 | R:code:diagnostics-core/consumer-rules.pro | A:diagnostics-core | S:JVM与Android固定Java17，jvmShared文件实现共用，核心不依赖UI引擎或供应商SDK
+consumer-rules.pro[FV6T]: F:保留Android诊断SDK SPI接口的完整名称 | R:- | A:AndroidDiagnosticSdkFactory | S:服务描述文件依赖稳定接口全限定名
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/===
+AndroidAnrMonitor.kt[OO8L]: F:导入API30起系统ANR历史并以主线程看门狗采集有界现场与线程转储 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AnrReportStore.kt | A:AndroidAnrMonitor.start,close,AnrLogLevel | S:宿主先隐私准入且Main串行start、后台串行close等待IO无期限；看门狗5秒仅采样一次至恢复，非系统ANR判定；错误日志不得放大OOM或影响业务
+AndroidCrashRecorder.kt[OO8T]: F:创建noBackup私有Store并安装进程唯一JVM未捕获异常记录器及Android原子rename实现 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ReportRecorder.kt | A:androidDiagnosticStore,AndroidCrashRecorder,platformMove | S:采集/通知/flush失败仍恰一次调用原handler；close只在仍拥有默认handler时恢复且不关共享Store，flush不得等Main；不捕获native signal或ANR
+AndroidNativeCrashCollector.kt[OO8S]: F:后台导入系统native退出历史为有界报告并持久化最多64个去重标识 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ReportRecorder.kt | A:AndroidNativeCrashCollector.start,close,readBounded | S:API30只元数据，API31起tombstone以有界Base64原文保存不解UTF8栈；close不等待无期限trace且丢迟结果，保存成功后才记去重；不得多读一字节探EOF
+AnrReportStore.kt[PO8M]: F:原子存储有界ANR报告、解析头部摘要和详情并提供轮转安全只读快照及启发式建议 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticReadSnapshot.kt,code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AndroidAnrMonitor.kt | A:AnrReportStore,AnrReport,analyzeAnr,extractMainThreadTrace | S:按事件时间保留最新10份/256KiB而非写盘顺序，稳定名去重且窗口外旧历史不重写；实例锁非跨进程，建议不是已证根因
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/sdk/===
+AndroidDiagnosticSdkFactory.kt[IE8T]: F:通过ServiceLoader查找唯一Android供应商工厂并创建中性SDK桥 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkConfiguration.kt | A:AndroidDiagnosticSdkFactory,installedAndroidDiagnosticSdkBridge | S:仅Runtime已获隐私准入后调用，工厂构造/create均不初始化SDK；零个或多个拒绝，SPI错误用固定消息隐藏原始参数和路径
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/androidUnitTest/kotlin/io/github/gycrosskit/diagnostics/===
+AndroidAnrMonitorTest.kt[TO6T]: F:验证主线程帧数与线程转储的字符预算及截断提示 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AndroidAnrMonitor.kt | A:AndroidAnrMonitorTest | S:-
+AndroidCrashRecorderTest.kt[TO7T]: F:验证成功落盘通知、重复安装拒绝、旧handler链及采集失败仍调用下游 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AndroidCrashRecorder.kt | A:AndroidCrashRecorderTest | S:已detach的旧handler不能复活采集器或通知
+AndroidNativeCrashCollectorTest.kt[TO7S]: F:验证native历史去重、存储失败重试、无trace元数据及关闭时丢弃迟结果 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AndroidNativeCrashCollector.kt | A:AndroidNativeCrashCollectorTest | S:close不等待阻塞trace，同时间不同进程仍保留独立记录，有界流不额外探读
+AnrReportStoreTest.kt[TO7S]: F:验证ANR稳定命名、按事件时间保留窗口、报告预算及快照抗淘汰 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AnrReportStore.kt | A:AnrReportStoreTest | S:旧系统历史不能挤掉较新报告，导出只借reader不接管所有权
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/androidUnitTest/kotlin/io/github/gycrosskit/diagnostics/sdk/===
+AndroidDiagnosticSdkFactoryTest.kt[TE6T]: F:验证单SPI发现及无工厂、多工厂、坏注册和构造错误的安全失败 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/sdk/AndroidDiagnosticSdkFactory.kt | A:AndroidDiagnosticSdkFactoryTest | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/===
+DiagnosticFiles.kt[PS8S]: F:提供受控私有文件枚举、长度快照、尾部读取、内容比较、摘要及文本导出机制 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticReadSnapshot.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:DiagnosticFiles,DiagnosticSnapshotFile,LegacyDiagnosticSource | S:拒绝点段换行和符号链接，快照追加不进入长度范围而缩短失败；导出临时/正式路径不得撞输入且须不存在，借reader不关闭；删除依据逐字节比较而非指纹
+DiagnosticReadSnapshot.kt[PO8T]: F:持有一组已打开定长reader使追加、rename或删除不改变本次读取 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticFiles.kt | A:DiagnosticReadSnapshot.reader,close,closeWithError | S:reader只消费一次，调用方use/finally关闭，导出只借用；打开失败关所有已开项，关闭一项失败仍释放余项并保留suppressed异常；Swift用closeWithError
+DiagnosticStore.kt[PO9L]: F:串行管理私有滚动日志、有界报告、稳定pending批次、逐文件reader、TAR导出与确认删除 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticFiles.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticReadSnapshot.kt | A:DiagnosticStore,DiagnosticLimits,DiagnosticBatch,DiagnosticExport,DiagnosticFileReader | S:一目录只由单进程单实例持有且同步IO不响应取消，宿主后台先脱敏；pending复用且不参与滚动淘汰，失败保留原件；回执绑定owner/批次/完整TAR字节，重启重取owner；历史迁入只读授权目录且确认时逐字节匹配才删旧件；reader独立于Store.close，必须显式关闭
+IosSystemReportParser.kt[KO7S]: F:将宿主已采集MetricKit或NSException JSON解析为中性摘要及可选有界细节 | R:code:ios-support/GYDiagnosticCollector.swift | A:IosSystemReportParser.parse,NeutralSystemReport,SystemReportParseResult | S:不启动采集或生成业务文案，2Mi字符输入/64层预检及100报告上限；数值秒毫秒与ISO时间明确转换，越界回退，includeDetails=false清细节
+NetworkCapture.kt[MS9S]: F:在网络适配边界应用宿主准入和有界脱敏并关联请求、响应头、完整正文及失败日志 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/NetworkLogStore.kt | A:NetworkCapture,NetworkCall,redactNetworkJson | S:正文默认关且超过预算整段丢弃不截断后脱敏；默认去URL秘密并遮凭据，自定义策略可替代默认故宿主承担原文责任；异常只记录类型，回调异常不能改HTTP结果；响应正文补充沿原requestId与响应头耗时，JSON限深防栈溢出
+NetworkLogStore.kt[PO8T]: F:维护跨线程有界StateFlow网络日志环及请求关联ID并解析类型URL与状态摘要 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/NetworkCapture.kt | A:NetworkLogStore,NetworkLogRecord,classifyNetworkLog,parseNetworkLogUrl,parseNetworkResponseStatus | S:递归锁允许Unconfined观察者同步clear，clear不重置ID；仅按字符限额不自动脱敏context或原文；旧记录构造copy保持兼容，URL可能含私密query
+ReportRecorder.kt[MO7T]: F:串行协调平台采集落盘、成功通知和关闭终态 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:ReportRecorder.record,close | S:通知不在文件锁内且允许回调close，落盘或通知异常不能越过系统ABI或中断业务，未保存不通知
+Sha256.kt[KS6T]: F:以固定64字节工作块增量计算标准SHA256十六进制内容标识 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticFiles.kt | A:diagnosticFingerprint | S:指纹只作标识，不构成删除授权
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/===
+DiagnosticSdkConfiguration.kt[LS8T]: F:定义开放供应商标识、品牌环境能力配置及初始化与写日志中性桥 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkRuntime.kt | A:DiagnosticSdkConfiguration,DiagnosticSdkProvider,DiagnosticSdkBridge | S:matches要求准确非空brand与debug/qa/release环境、appKey及至少一能力；toString仅输出provider/能力，不暴露凭据，默认none
+DiagnosticSdkRuntime.kt[AS9S]: F:控制进程单次诊断SDK配置、隐私准入、并发初始化、失败状态及有界过滤日志转发 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkConfiguration.kt | A:DiagnosticSdkRuntime.configure,initialize,record,consumeLogs,DiagnosticSdkState | S:准入返回稳定安装ID前不构造SDK，Mutex仅初始化一次且失败不自动重试；进程Main消费64条丢最旧队列，页面不能取消；跳过KtorHttp防原文泄露，凭据过滤保留UTF8完整字符且最终4096字节；授权撤回停采未承诺
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/commonTest/kotlin/io/github/gycrosskit/diagnostics/===
+DiagnosticReadSnapshotLifecycleTest.kt[TO6T]: F:验证快照部分打开失败和关闭异常时全部reader释放与幂等 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticReadSnapshot.kt | A:DiagnosticReadSnapshotLifecycleTest | S:-
+DiagnosticStoreTest.kt[TO8M]: F:验证Store容量、UTF8、稳定批次重试、归档损坏保留、重启和精确确认删除 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:DiagnosticStoreTest | S:活动快照仅读捕获长度，冻结reader须拒绝增长；存储通知允许重入，失败与部分成功不能删证据
+IosSystemReportParserTest.kt[TO6T]: F:验证中性iOS报告字段、时间精度、坏输入和SHA256标准向量 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/IosSystemReportParser.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/Sha256.kt | A:IosSystemReportParserTest | S:-
+NetworkCaptureTest.kt[TS8S]: F:验证关联请求、默认和自定义脱敏、正文预算、兼容构造及递归观察日志环 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/NetworkCapture.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/NetworkLogStore.kt | A:NetworkCaptureTest | S:正文超额或无法脱敏须整段丢弃，Header策略失败只遮当前值；JSON深度预检和同步clear不得死锁
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/commonTest/kotlin/io/github/gycrosskit/diagnostics/sdk/===
+DiagnosticSdkRuntimeTest.kt[TS8S]: F:验证SDK品牌配置、授权、并发单次初始化、取消失败和64条队列与日志脱敏 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkRuntime.kt | A:DiagnosticSdkRuntimeTest | S:无准入不得碰授权回调或factory，重复调用者取消不影响已有初始化，失败不重试或转发日志
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/iosMain/kotlin/io/github/gycrosskit/diagnostics/===
+IosDiagnosticStore.kt[PS7T]: F:在iOS Library专属目录同步创建Store并排除系统备份 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:iosDiagnosticStore | S:宿主后台调用并持有close，排除备份失败抛错，不安装采集器
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/jvmMain/kotlin/io/github/gycrosskit/diagnostics/===
+PlatformFiles.kt[PR6T]: F:在JVM用SystemFileSystem提供原子移动实际实现 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:platformMove | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/===
+BoundedReportWriter.kt[CO7T]: F:在完整Unicode边界按UTF8字节预算流式写报告并预留截断标记 | R:code:diagnostics-core/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticWriter.kt | A:BoundedReportWriter | S:实例须串行调用，finish只调用一次且不关闭或flush外部writer，隐私脱敏归宿主
+DiagnosticWriter.kt[PO8S]: F:提供独占有界日志写队列、flush屏障与有界cause/suppressed异常格式化 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt,code:diagnostics-core/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/BoundedReportWriter.kt | A:DiagnosticWriter, boundedThrowableReport | S:满队列提交失败，flush只在真实barrier返回后标记错误已报告，超时迟barrier不能吞失败；中断保留标志，close不关共享Store；异常按identity去环且suppressed有界
+DiagnosticZip.kt[PS8T]: F:以流式ZIP导出授权定长文件或已打开快照并允许宿主映射归档名和文本项 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticReadSnapshot.kt | A:exportDiagnosticZip,DiagnosticZipFile | S:拒绝重复/绝对/父跳转归档名及既存临时或正式输出，防输出撞源；失败保留原件，借入snapshot不关闭，路径入口自开则全分支关闭
+FileTail.kt[PD6T]: F:用RandomAccessFile seek后精确读取快照尾部固定长度 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticFiles.kt | A:platformReadTail | S:-
+StoreLock.kt[CR7T]: F:以ReentrantLock提供Android/JVM存储串行及同线程重入 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:StoreLock.locked | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/jvmTest/kotlin/io/github/gycrosskit/diagnostics/===
+ClosureContractTest.kt[TO8S]: F:验证写入错误屏障、超时、历史冻结迁移、受控导出及并发网络记录的闭环合同 | R:code:diagnostics-core/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticWriter.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:ClosureContractTest | S:后续成功不能抹未报告错误，超时barrier不消费失败；旧冻结容量不足不能拆批或删源
+DiagnosticSnapshotConcurrencyTest.kt[TO8M]: F:验证原子打开快照在轮转、冻结确认删除、追加及慢ZIP读取期间保持内容和释放合同 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticReadSnapshot.kt,code:diagnostics-core/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticZip.kt | A:DiagnosticSnapshotConcurrencyTest | S:旧路径快照可静默读替换件作为回归对照；已开reader不重新按路径打开，已删源及父目录别名仍不能成为导出临时路径
+TarConsumerTest.kt[TO7T]: F:使用系统tar验证真实归档内容、并发写入容量及归档写失败保留冻结件 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:TarConsumerTest | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/nativeMain/kotlin/io/github/gycrosskit/diagnostics/===
+FileTail.kt[PD6T]: F:用POSIX文件seek和精确fread实现Native快照尾部读取 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticFiles.kt | A:platformReadTail | S:源缩短或读错误失败，所有分支fclose
+NativeThrowableReport.kt[CO7T]: F:在UTF8总预算内格式化Native异常、堆栈、cause和suppressed并标记截断 | R:- | A:boundedNativeThrowableReport | S:不先构造完整堆栈文本，identity去环且深度/节点最多16、单栈100帧，不安装系统采集器
+StoreLock.kt[CR8T]: F:以POSIX mutex实现Native串行和可选递归锁及原子文件移动 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:StoreLock,platformMove | S:mutex由对象cleaner回收，避免显式close与等待回调发生use-after-free，属性和加解锁错误均检查
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/nativeTest/kotlin/io/github/gycrosskit/diagnostics/===
+NativeThrowableReportTest.kt[TO6T]: F:验证Native异常Unicode预算、cause/suppressed、循环及深层堆栈截断 | R:code:diagnostics-core/src/nativeMain/kotlin/io/github/gycrosskit/diagnostics/NativeThrowableReport.kt | A:NativeThrowableReportTest | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/===
+OhosCrashRecorder.kt[OO8T]: F:在准入后注册HiAppEvent watcher并将系统崩溃和冻结原文交给Store | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ReportRecorder.kt | A:OhosCrashRecorder,ohosSystemReportKind | S:API12回调无owner身份，进程成功安装后close禁止重装；锁内复制C数据锁外通知且不越ABI，Remove失败保留句柄重试；不导入external_log附件
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-core/src/ohosArm64Test/kotlin/io/github/gycrosskit/diagnostics/===
+OhosSystemReportsTest.kt[TO5T]: F:验证OHOS订阅事件将APP_CRASH和APP_FREEZE分别分类且忽略未知事件 | R:code:diagnostics-core/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/OhosCrashRecorder.kt | A:OhosSystemReportsTest | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/===
+build.gradle.kts[FV6T]: F:配置钉钉传输KMP目标、Ktor平台engine、测试和staging发布 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/DingTalkWebhookClient.kt | A:diagnostics-dingtalk | S:OHOS复用Core摘要实现，Android/JVM固定Java17
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+Client.kt[IN5T]: F:使用Ktor Android engine创建默认钉钉HTTP客户端 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/DingTalkWebhookClient.kt | A:defaultDingTalkHttpClient | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+DingTalkWebhookClient.kt[IN8S]: F:签名官方机器人地址、编码Markdown并执行单次有界HTTPS发送和协议回执解析 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/HmacDigest.kt | A:DingTalkWebhookClient,signedDingTalkWebhook,encodeDingTalkMarkdownPayload,decodeDingTalkWebhookResponse,DingTalkSendResult | S:只接受官方HTTPS443 robot/send未签名地址，禁重定向且三类超时5秒；响应最多16KiB，取消传播，异常与服务原文不回显；close不关借用engine，不自动重试，成功不证明收件已读
+HmacDigest.kt[KS7T]: F:以标准SHA256摘要回调组合RFC2104 HMAC并处理长密钥 | R:code:diagnostics-dingtalk/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/dingtalk/Client.kt | A:hmacSha256UsingDigest | S:digest须返回32字节标准SHA256，不持有密钥
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/commonTest/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+DingTalkContractTest.kt[TS7S]: F:通过MockEngine验证签名、官方端点、单次回执、字节上限与借用engine关闭隔离 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/DingTalkWebhookClient.kt | A:DingTalkContractTest | S:不发送真实消息，重定向和超大响应失败，传输失败不泄密且取消向上传播
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/iosMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+Client.kt[IS6T]: F:使用Darwin engine及CoreCrypto CCHmac提供iOS钉钉传输和HMAC | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/DingTalkWebhookClient.kt | A:defaultDingTalkHttpClient,hmacSha256 | S:密钥与数据须非空，固定SHA256输出长度
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/jvmMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+Client.kt[IN5T]: F:使用Ktor CIO创建JVM默认钉钉HTTP客户端 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/DingTalkWebhookClient.kt | A:defaultDingTalkHttpClient | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+Hmac.kt[KS6T]: F:用平台javax.crypto计算Android/JVM标准HmacSHA256 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/DingTalkWebhookClient.kt | A:hmacSha256 | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/jvmTest/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+HmacDigestTest.kt[TS6T]: F:以多种跨block密钥长度核对通用digest组合与平台HMAC一致 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/HmacDigest.kt | A:HmacDigestTest | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-dingtalk/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/dingtalk/===
+Client.kt[IS7T]: F:提供OHOS Curl客户端并复用Core SHA256组合标准HMAC | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/HmacDigest.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/Sha256.kt | A:defaultDingTalkHttpClient,hmacSha256 | S:API12基线不依赖新系统Native Crypto API
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-ktor/===
+build.gradle.kts[FV6T]: F:配置Ktor诊断插件的三端/JVM目标、Core传递依赖及MockEngine测试 | R:code:diagnostics-ktor/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ktor/DiagnosticsKtor.kt | A:diagnostics-ktor | S:不选择具体平台engine，Android/JVM固定Java17
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-ktor/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ktor/===
+DiagnosticFileChannel.kt[IN8T]: F:将冻结文件reader桥接为宿主scope下有背压的Ktor流并提供关闭与完整读取屏障 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:DiagnosticFileChannel,DiagnosticStore.openFileChannel | S:协程开始后才开reader防预取消泄漏，读/close错误和取消传播且失败close保留suppressed；awaitComplete仅证明本地EOF/close，绝不确认批次或服务器接收
+DiagnosticsKtor.kt[MN9S]: F:在每次真实Ktor发送上观察有效请求头、响应头及已保存或宿主提供的完整UTF8正文 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/NetworkCapture.kt | A:DiagnosticsKtor,DiagnosticsKtorConfig,HttpResponse.recordDiagnosticsBody | S:不save/替换/消费live流或调用自定义one-shot content；Monitoring在序列化后且响应头计时在SaveBody前，按engine规则合并Content-Type；只读已保存有界UTF8或宿主已消费字节，编码/超限丢弃，网络异常和取消原样传播
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-ktor/src/commonTest/kotlin/io/github/gycrosskit/diagnostics/ktor/===
+DiagnosticFileChannelTest.kt[TN7S]: F:验证逐文件流的完整读、预取消、背压取消、缩短及EOF关闭失败屏障 | R:code:diagnostics-ktor/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ktor/DiagnosticFileChannel.kt | A:DiagnosticFileChannelTest | S:读完不自动确认批次，close失败不能冒充上传成功，失败仍精确释放一次
+DiagnosticsKtorTest.kt[TN8L]: F:以MockEngine验证真实插件有效头、脱敏、正文预算、重试并发关联及流消费透明性 | R:code:diagnostics-ktor/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ktor/DiagnosticsKtor.kt | A:DiagnosticsKtorTest | S:自定义one-shot和流式请求只由engine消费，流式响应不等EOF；saved正文仍可重读，原异常与取消不被日志改变
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-kuikly/===
+build.gradle.kts[FV6T]: F:配置仅OHOS的诊断SDK Renderer桥及Core/Kuikly依赖 | R:code:diagnostics-kuikly/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/kuikly/OhosDiagnosticSdkBridge.kt | A:diagnostics-kuikly | S:Compose依赖用于现有Renderer调度，不引入独立业务UI
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-kuikly/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/kuikly/===
+OhosDiagnosticSdkBridge.kt[IE9S]: F:把进程SDK初始化与有界日志转发到当前OHOS页面Module并在页面替换时重接transport | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkConfiguration.kt | A:OhosDiagnosticSdkBridge,DiagnosticSdkModule | S:仅Renderer线程访问Module栈，跨线程发布页ID并最多排64副本；willInit先于injectVar需预绑页ID，初始化20秒只重接页面不重新初始化供应商；预存2.29.1下一callbackRef使同步异常/回执/取消均可注销，升级须核调度internal API
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-okhttp/===
+build.gradle.kts[FV6T]: F:配置Android/JVM专用OkHttp诊断适配及真实MockWebServer回归 | R:code:diagnostics-okhttp/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/okhttp/NetworkDiagnosticsInterceptor.kt | A:diagnostics-okhttp | S:Core未安装适配时不引入OkHttp，Java17
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-okhttp/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/okhttp/===
+NetworkDiagnosticsInterceptor.kt[MN8T]: F:在正常OkHttp请求写入及响应读取完成时旁观有界正文并记录共享脱敏关联日志 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/NetworkCapture.kt | A:NetworkDiagnosticsInterceptor | S:用addInterceptor一逻辑Call共ID，不预读重放或等流终止；one-shot仅一次写，duplex不包，提前close/超限/非法UTF8及SSE/NDJSON丢正文，原网络错误传播
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-okhttp/src/jvmTest/kotlin/io/github/gycrosskit/diagnostics/okhttp/===
+NetworkDiagnosticsInterceptorTest.kt[TN7S]: F:验证真实OkHttp正常消费脱敏、one-shot单写、早关不发布正文和网络错误透明 | R:code:diagnostics-okhttp/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/okhttp/NetworkDiagnosticsInterceptor.kt | A:NetworkDiagnosticsInterceptorTest | S:二进制/SSE/非法UTF8和禁采应保留原响应字节，采集失败不破坏请求
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-umeng/===
+build.gradle.kts[FV7T]: F:配置Android友盟适配、Core导出、厂商依赖与SPI资源及测试 | R:code:diagnostics-umeng/consumer-rules.pro,code:diagnostics-umeng/src/androidMain/AndroidManifest.xml | A:diagnostics-umeng | S:补APM POM遗漏的OkHttp/Okio依赖供R8，Java17和minSdk24
+consumer-rules.pro[FV6T]: F:保留ServiceLoader按名称创建的友盟无参工厂 | R:code:diagnostics-umeng/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/umeng/UmengAndroidDiagnosticSdkFactory.kt | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-umeng/src/androidMain/===
+AndroidManifest.xml[FS7T]: F:从友盟合并Manifest移除广告标识权限和内存泄漏性能子服务 | R:code:diagnostics-umeng/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/umeng/UmengDiagnosticSdkBridge.kt | A:- | S:崩溃统计不需要AD_ID、MSA或性能监测子进程
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-umeng/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/umeng/===
+UmengAndroidDiagnosticSdkFactory.kt[IE7T]: F:提供标准SPI无参工厂创建友盟桥 | R:code:diagnostics-umeng/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/umeng/UmengDiagnosticSdkBridge.kt | A:UmengAndroidDiagnosticSdkFactory.create | S:factory创建不提前初始化供应商SDK
+UmengDiagnosticSdkBridge.kt[IO8T]: F:按授权配置初始化友盟崩溃和远程日志、关闭非目标能力并设置品牌环境维度 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkConfiguration.kt | A:UmengDiagnosticSdkBridge,crashOnlyUmengConfiguration,umengLogChunks | S:隐私准入内先preInit准备Common再授权/init；ULog安装ID须init前显式设置防回退UMID，初始化后s1/s2填品牌环境；性能拒绝，日志按1024UTF16分片保代理对
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-umeng/src/androidMain/resources/META-INF/services/===
+io.github.gycrosskit.diagnostics.sdk.AndroidDiagnosticSdkFactory[FE6T]: F:登记友盟Android诊断SDK的ServiceLoader工厂实现 | R:code:diagnostics-umeng/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/umeng/UmengAndroidDiagnosticSdkFactory.kt | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/diagnostics-umeng/src/androidUnitTest/kotlin/io/github/gycrosskit/diagnostics/umeng/===
+UmengConfigurationTest.kt[TO7M]: F:核验友盟真实初始化顺序、品牌环境维度、关闭性能、日志标识与分片及SPI准入 | R:code:diagnostics-umeng/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/umeng/UmengDiagnosticSdkBridge.kt | A:UmengConfigurationTest | S:缺凭据或全部能力关闭不改变handler或创建缓存，SDK构造前已有Android Main dispatcher
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/docs/===
+功能与平台差异.md[SG8S]: F:维护诊断存储、采集、网络和可选供应商的三端模块归属、合同及验证边界 | R:code:README.md,code:docs/机制接入.md,code:docs/可选诊断SDK.md | A:- | S:Store批次留存与独立ANR最新10份不可互换；系统延迟报告非实时全覆盖，快照不提供跨Store全局事务，隐私撤回停采未保证
+原生采集接入.md[SG6T]: F:说明Android ANR/native历史、独立Swift采集器及OHOS watcher的宿主接线与历史边界 | R:code:docs/功能与平台差异.md | A:- | S:系统历史与watchdog不等价，ANR后台close会等IO而native collector丢迟数据不等；隐私与调度归宿主
+可选诊断SDK.md[SS8S]: F:维护三端供应商选择、隐私授权、配置范围、原生装配及能力差异合同 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkRuntime.kt,code:GYDiagnosticsSdk.podspec | A:- | S:none不引供应商，能力关不等于去二进制；iOS同名Provider只链一个且按module名静态framework；OHOS首次快照/Promise不热重配，不承诺撤回停采
+完整审查.md[SQ4T]: F:保留rc.5源码审查修复、冻结归档摘要与独立远程消费历史证据 | R:code:VALIDATION.md | A:- | S:历史源码测试与远程消费者分别计数，不证明设备采集、后台递送或当前候选通过
+开发与验证.md[SV7T]: F:提供诊断组件生产构建、定向验证与发布消费入口并记录AOCI覆盖范围 | R:code:scripts/build.sh,code:docs/持续集成.md | A:- | S:AOCI0.1.1因Logs目录排除生产GYBuglyLogs.swift，修改iOS日志须直接读源码
+持续集成.md[SV7T]: F:规定各模块源码、归档、公开Maven和独立平台消费者的证据及版本门禁 | R:code:docs/开发与验证.md,code:verification/check-maven.py | A:- | S:三供应商真实R8与SPI保留单独验收，staging依赖闭包不代替公开消费，历史Actions只复现旧版
+接入指南.md[SG7S]: F:说明Store、稳定批次、流式上传及原生采集的宿主使用和显式确认删除 | R:code:docs/机制接入.md,code:docs/原生采集接入.md | A:- | S:单目录单实例，宿主先脱敏和后台调用，整批完成后才ack；读EOF/close不证明服务器接收，原生包独立安装
+机制接入.md[SG8S]: F:说明写入屏障、历史目录迁移、原子快照、轮转安全导出及Native异常机制 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt,code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticReadSnapshot.kt | A:- | S:旧冻结整批容量不足保留不拆，确认删除逐字节匹配旧原件；快照借reader必须由owner关闭，输出路径不能覆盖任何含已删源的别名
+网络诊断.md[SN8T]: F:说明Ktor/OkHttp旁观网络日志、脱敏策略、关联ID和完整正文观察的接线 | R:code:diagnostics-ktor/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ktor/DiagnosticsKtor.kt,code:diagnostics-okhttp/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/okhttp/NetworkDiagnosticsInterceptor.kt | A:- | S:不同时对Ktor OkHttp engine装两适配，正文默认关闭且超额整段丢弃，宿主显式自定义策略承担原文责任，插件不预读live流
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/docs/发布/===
+0.2.0-rc.11.md[SV4T]: F:冻结首次Ktor文件流版本的准确源码、归档摘要及兼容渠道验收边界 | R:code:VALIDATION.md | A:- | S:冻结候选不代替公开JitPack与独立消费者执行回执
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/gradle/===
+native-toolchain.properties[FV5T]: F:声明定制Kotlin Native版本、四目标和工具链修订 | R:- | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/gradle/wrapper/===
+gradle-wrapper.properties[FV5T]: F:固定Gradle8.11.1分发、SHA256与Wrapper缓存位置 | R:code:gradlew,code:gradlew.bat | A:- | S:实际分发必须匹配校验和
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ios-sdk/Bugly/===
+GYBuglyDiagnosticSdk.swift[IO8T]: F:在授权后启动Bugly崩溃与TDOS远程日志并保存厂商日志依赖 | R:code:ios-sdk/Core/GYDiagnosticSdk.swift | A:GYBuglyDiagnosticSdk | S:先日志启动成功才交接beforeStart和崩溃handler，性能拒绝且不等待无失败语义异步回调；日志关console、50MiB/10天，不主动uploadFiles，成功不重新配置
+GYDiagnosticSdkProviderFactory.swift[IE7T]: F:按已链接Bugly Pod创建供应商中性适配器 | R:code:ios-sdk/Bugly/GYBuglyDiagnosticSdk.swift | A:GYDiagnosticSdkProviderFactory.create | S:配置provider与实际链接实现不符就拒绝，一个应用只链一个Provider
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ios-sdk/Core/===
+GYDiagnosticSdk.swift[LS8T]: F:定义iOS SDK配置、固定安全错误及供应商初始化写日志协议 | R:code:ios-sdk/Bugly/GYBuglyDiagnosticSdk.swift,code:ios-sdk/Umeng/GYUmengDiagnosticSdk.swift | A:GYDiagnosticSdkConfiguration,GYDiagnosticSdkError,GYDiagnosticSdkAdapter | S:宿主隐私授权后串行调用，beforeStart先撤本地handler；成功仅启动调用返回，厂商无关闭接口且不支持成功后热重配
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ios-sdk/Umeng/===
+GYDiagnosticSdkProviderFactory.swift[IE7T]: F:按已链接友盟Pod创建供应商中性适配器 | R:code:ios-sdk/Umeng/GYUmengDiagnosticSdk.swift | A:GYDiagnosticSdkProviderFactory.create | S:provider不符拒绝，一个应用只链一个Provider
+GYUmengDiagnosticSdk.swift[IO8T]: F:授权后按能力初始化友盟崩溃及日志、关闭非目标采集并附品牌环境维度 | R:code:ios-sdk/Core/GYDiagnosticSdk.swift,code:ios-sdk/Umeng/GYUmengVendorHeaders.h | A:GYUmengDiagnosticSdk | S:UMAPM2.0.7 crash/block联开不可假拆，初始化前关闭Analytics与ASA，性能拒绝；仅启崩溃时beforeStart交接，之后s1/s2维度不替代channel，成功不重配
+GYUmengVendorHeaders.h[IE6T]: F:通过组件umbrella向Swift暴露UMAPM公开ObjC头 | R:code:GYDiagnosticsUmeng.podspec | A:- | S:固定UMAPM2.0.7没有modulemap，使用真实公开头而非伪模块
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ios-sdk/tests/===
+NativeSdkTestMain.swift[TO7S]: F:在隔离进程验证真实Swift供应商适配器能力准入、日志失败、handler交接和初始化幂等 | R:code:ios-sdk/Bugly/GYBuglyDiagnosticSdk.swift,code:ios-sdk/Umeng/GYUmengDiagnosticSdk.swift | A:- | S:厂商依赖用受控stub，不发真实崩溃日志；无效或性能请求不能交接handler或触发厂商init
+run.sh[TV6T]: F:在临时目录编译真实Swift供应商适配与stub并为每种配置启动隔离测试进程 | R:code:ios-sdk/tests/NativeSdkTestMain.swift | A:- | S:Bugly与友盟分别编译同名Provider以免冲突，临时产物退出清理，不调用真实供应商SDK
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ios-sdk/tests/Stubs/===
+BuglyProCore.swift[TQ4T]: F:记录Bugly模块、配置和启动次数供真实Swift适配测试 | R:code:ios-sdk/tests/NativeSdkTestMain.swift | A:Bugly,BuglyConfig | S:异步启动重载故意不回调以约束启动返回语义
+TDOS_Diagnose.swift[TQ4T]: F:提供TDOS logger、远程日志SDK和存储打包协议的受控测试替身 | R:code:ios-sdk/tests/NativeSdkTestMain.swift | A:TDOSLogger,TDLogSDK,TDLogSDKConfig | S:-
+UMAPMHeadersStub.swift[TQ4T]: F:提供UMAPM配置、维度及日志公开头的Swift测试替身 | R:code:ios-sdk/tests/NativeSdkTestMain.swift | A:UMAPMConfig,UMCrashConfigure,UAPMLog | S:-
+UMCommon.swift[TQ4T]: F:记录友盟Common初始化及Analytics/ASA开关的测试替身 | R:code:ios-sdk/tests/NativeSdkTestMain.swift | A:UMConfigure | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ios-support/===
+GYDiagnosticCollector.swift[OO8S]: F:进程独占订阅MetricKit并同步保存NSException原始JSON至宿主私有目录 | R:code:ios-support/MetricKitOwnership.swift | A:GYDiagnosticCollector.start,stop | S:Main串行启停，stop先撤入口再drain已接收utility写入；异常线程同步原子写并继续旧handler，仅仍拥有handler时恢复；三类各最新10份，不捕获signal且不保证即时递送，备份隐私归宿主
+GYMetricKitRecorder.swift[OO8T]: F:兼容旧MetricKit回调入口并在utility队列交付JSON与成功落盘通知 | R:code:ios-support/MetricKitOwnership.swift | A:GYMetricKitRecorder | S:Main start/stop且stop等待已排队写入，record回调不得同步等Main或调用stop；旧Void回调不产生成功通知，未落盘不得通知
+MetricKitOwnership.swift[MR8T]: F:以锁和单进程owner协调新旧MetricKit采集API并路由NSException | R:code:ios-support/GYDiagnosticCollector.swift,code:ios-support/GYMetricKitRecorder.swift | A:MetricKitOwnership.claim,release,collector | S:其他未停owner存在时拒绝重复claim，release按对象身份不能撤后继
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/AppScope/===
+app.json5[FV3T]: F:声明鸿蒙诊断工程应用bundle和内部版本 | R:code:ohos-sdk/build-profile.json5 | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/bugly/===
+CHANGELOG.md[SV4T]: F:记录鸿蒙Bugly适配版本候选及历史发布变更 | R:code:ohos-sdk/bugly/README.md | A:- | S:-
+Index.ets[IE6T]: F:提供HAR统一工厂创建Bugly中性SDK实现 | R:code:ohos-sdk/bugly/src/main/ets/BuglyDiagnosticSdk.ets | A:createDiagnosticSdk | S:-
+LICENSE[SG3M]: F:声明Bugly适配HAR的Apache2.0许可与免责条件 | R:- | A:- | S:-
+README.md[SG5T]: F:说明私仓Bugly候选包的安装、同版Core依赖及宿主准入职责 | R:code:README.md | A:- | S:纯ArkTS包不携带第二份Kotlin runtime，安装不代表设备或厂商上报验收
+build-profile.json5[FV4T]: F:声明Bugly适配HAR的stageMode和默认HarmonyOS目标 | R:code:ohos-sdk/build-profile.json5 | A:- | S:-
+hvigorfile.ts[FV4T]: F:将Bugly适配模块接入Hvigor harTasks | R:code:ohos-sdk/bugly/build-profile.json5 | A:- | S:-
+oh-package.json5[FV6T]: F:声明Bugly候选HAR1.0.7、同版Core及固定厂商0.7.2依赖 | R:code:ohos-sdk/bugly/Index.ets | A:@gycrosskit/diagnostics-bugly | S:Core精确同版，不从宿主偶然依赖补供应商闭包
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/bugly/src/main/ets/===
+BuglyDiagnosticSdk.ets[IO8T]: F:授权后按能力启动鸿蒙Bugly崩溃和TDLog远程日志并转发生命周期 | R:code:ohos-sdk/core/src/main/ets/DiagnosticSdk.ets | A:BuglyDiagnosticSdk | S:性能请求拒绝且显式禁性能/JS保护，版本环境映射DEBUG/GRAY/RELEASE；私有业务日志单卷5MiB/5天关console，前台同步配置后台flush；厂商自行持有崩溃及捞取任务
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/bugly/src/main/===
+module.json5[FV4T]: F:声明DiagnosticsBugly为默认设备和平板HAR | R:- | A:DiagnosticsBugly | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/===
+build-profile.json5[FV6T]: F:配置API22 HarmonyOS产品和Core/Bugly/Umeng三个HAR模块 | R:code:ohos-sdk/core/build-profile.json5,code:ohos-sdk/bugly/build-profile.json5,code:ohos-sdk/umeng/build-profile.json5 | A:DiagnosticsCore,DiagnosticsBugly,DiagnosticsUmeng | S:target和compatible均6.0.2(22)，原生SDK依赖须同轮Core消费
+hvigorfile.ts[FV4T]: F:将诊断鸿蒙根工程接入appTasks | R:code:ohos-sdk/build-profile.json5 | A:- | S:-
+oh-package.json5[FV4T]: F:声明纯ArkTS HAR工程模型版本和根依赖 | R:- | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/core/===
+CHANGELOG.md[SV4T]: F:记录鸿蒙中性SDK运行时和Module的候选及历史发布变更 | R:code:ohos-sdk/core/README.md | A:- | S:-
+Index.ets[LE7T]: F:导出鸿蒙SDK中性协议、进程Runtime和Renderer Module | R:code:ohos-sdk/core/src/main/ets/DiagnosticSdk.ets,code:ohos-sdk/core/src/main/ets/DiagnosticSdkRuntime.ets,code:ohos-sdk/core/src/main/ets/DiagnosticSdkModule.ets | A:DiagnosticSdk,DiagnosticSdkConfiguration,DiagnosticSdkRuntime,DiagnosticSdkModule | S:-
+LICENSE[SG3M]: F:声明中性Core HAR的Apache2.0许可和免责条件 | R:- | A:- | S:-
+README.md[SG5T]: F:说明私仓Core候选安装及固定Renderer构建和宿主选择边界 | R:code:README.md | A:- | S:纯ArkTS不复制Kotlin runtime，构建固定Renderer2.29.1，发布和设备验收分开
+build-profile.json5[FV4T]: F:声明Core HAR的stageMode与默认HarmonyOS构建目标 | R:code:ohos-sdk/build-profile.json5 | A:- | S:-
+hvigorfile.ts[FV4T]: F:将诊断Core模块接入Hvigor harTasks | R:code:ohos-sdk/core/build-profile.json5 | A:- | S:-
+oh-package.json5[FV6T]: F:声明中性Core HAR候选1.0.7、许可与固定Renderer2.29.1 | R:code:ohos-sdk/core/Index.ets | A:@gycrosskit/diagnostics-core | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/core/src/main/ets/===
+DiagnosticSdk.ets[LS7T]: F:定义鸿蒙供应商中性SDK配置、初始化日志和Ability生命周期协议 | R:code:ohos-sdk/core/src/main/ets/DiagnosticSdkRuntime.ets | A:DiagnosticSdk,DiagnosticSdkConfiguration | S:配置只在私有Module接线读取，不进入pageData或日志
+DiagnosticSdkModule.ets[IE8T]: F:把私有Renderer配置、初始化与日志请求转给进程Runtime并屏蔽销毁后回执 | R:code:ohos-sdk/core/src/main/ets/DiagnosticSdkRuntime.ets | A:DiagnosticSdkModule,call,onDestroy | S:严格校验输入类型且privacyGranted仅接受true；Module销毁不关闭进程SDK，错误仅固定状态或短日志不回显凭据
+DiagnosticSdkRuntime.ets[AS9S]: F:验证鸿蒙隐私、品牌环境、安装供应商和能力后冻结首份配置并共用SDK初始化Promise | R:code:ohos-sdk/core/src/main/ets/DiagnosticSdk.ets | A:DiagnosticSdkRuntime,initialize,onAbilityCreated,onAbilityDestroyed,onForeground,onBackground | S:旧四参构造兼容，第五参数声明实际安装实现；同配置/安装ID/版本复用Promise含失败，同步抛错也冻结，异配置拒绝；友盟远程日志与所有性能请求不支持，页面重建不重新安装SDK；生命周期错误不能影响本地日志
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/core/src/main/===
+module.json5[FV4T]: F:声明DiagnosticsCore为默认设备和平板HAR | R:- | A:DiagnosticsCore | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/hvigor/===
+hvigor-config.json5[FV4T]: F:声明Harmony6.0.2 Hvigor工程模型和空执行配置 | R:- | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/umeng/===
+CHANGELOG.md[SV4T]: F:记录友盟HAR候选版本、InternalPlugin接入和历史发布变更 | R:code:ohos-sdk/umeng/README.md | A:- | S:-
+Index.ets[IE6T]: F:通过统一工厂创建鸿蒙友盟诊断SDK | R:code:ohos-sdk/umeng/src/main/ets/UmengDiagnosticSdk.ets | A:createDiagnosticSdk | S:-
+LICENSE[SG3M]: F:声明友盟适配HAR的Apache2.0许可与免责条件 | R:- | A:- | S:-
+README.md[SG6T]: F:说明友盟私仓候选安装、同版Core及启动会话统计的隐私合同 | R:code:docs/可选诊断SDK.md | A:- | S:旧rc.16不含InternalPlugin修复；构建安装不代表厂商上报或真机验收
+build-profile.json5[FV4T]: F:声明友盟HAR stageMode和默认HarmonyOS目标 | R:code:ohos-sdk/build-profile.json5 | A:- | S:-
+hvigorfile.ts[FV4T]: F:将友盟适配模块接入harTasks | R:code:ohos-sdk/umeng/build-profile.json5 | A:- | S:-
+oh-package.json5[FV6T]: F:声明友盟候选HAR1.0.7、精确同版Core及固定Common/analytics/APM依赖 | R:code:ohos-sdk/umeng/Index.ets | A:@gycrosskit/diagnostics-umeng | S:Common1.2.0、analytics1.2.12、APM1.5.0按固定配套
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/umeng/src/main/ets/===
+UmengDiagnosticSdk.ets[IO8T]: F:通过Common公共入口注册InternalPlugin与ApmPlugin并执行宿主已授权的友盟初始化 | R:code:ohos-sdk/core/src/main/ets/DiagnosticSdk.ets | A:UmengDiagnosticSdk | S:拒绝性能和远程日志，授权须覆盖启动会话统计；避免SourcePlugin并关闭OAID/JS catch/blockHiLog/diskFree，SDK内建CPU内存崩溃上下文无法关闭，安装ID/版本参数未覆写
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/ohos-sdk/umeng/src/main/===
+module.json5[FV4T]: F:声明DiagnosticsUmeng为默认设备和平板HAR | R:- | A:DiagnosticsUmeng | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/scripts/===
+archive-prebuilt.sh[OV7T]: F:重建独占staging并校验30个publication、Java17字节码后归档Maven和摘要 | R:code:verification/check-maven.py,code:jitpack-metadata.py | A:- | S:仅归档指定不可变VERSION且不夹旧版本/SNAPSHOT，不上传或创建Tag
+assert-test-results.py[TQ6T]: F:解析指定JUnit XML并拒绝失败错误或全部跳过与零报告 | R:- | A:- | S:必须存在实际执行testcase，disabled target不能算测试通过
+build-ohos-sdk.sh[OV8T]: F:校验官方CLT来源后编译Core再以同轮实际HAR编译Bugly/Umeng并冻结摘要源码 | R:code:scripts/verify-ohos-sdk.py,code:ohos-sdk/build-profile.json5 | A:compile,package | S:package拒绝已有候选目录，compile副产物独立复用；CLT须官方HTTPS和准确SHA，临时override由trap还原，vendor不能偷偷用Core源目录替代实际HAR，不上传
+build.sh[OV7T]: F:提供诊断模块三端生产编译、四个iOS Pod和分模块HAR/Maven打包入口 | R:code:scripts/archive-prebuilt.sh,code:scripts/build-ohos-sdk.sh | A:compile,package | S:iOS真实生产Pod静态链接且只build，Harmony编译与不可覆盖发布目录分离；日常不串行为测试/消费者，HAR打包必须指定core/bugly/umeng
+check-public-maven.py[TV8M]: F:匿名核验JitPack准确源码状态、全部publication/variant字节和sidecar并存证 | R:code:scripts/ci-release.sh | A:ready_state,verify,main | S:不读本机凭据，先保存失败原响应，网络重试有界且不能放宽证书；公开metadata不等于实际消费者运行
+ci-java.security[FV3T]: F:配置Java正向DNS缓存一小时且不缓存负向结果 | R:code:scripts/ci-repositories.gradle | A:- | S:-
+ci-metadata-retry.py[OR7T]: F:仅识别Core metadata任务全部叶子均为Eazytec TCP超时的失败树并给出准确GET地址 | R:code:verification/ci/test_cache_contract.py | A:retry_url | S:混合错误、其他任务或非预期结构拒绝重试，不能掩盖真实编译或依赖错误
+ci-release.sh[OV8T]: F:检出准确远端Tag并安装冻结Maven、核验本地publication与匿名公开字节 | R:code:verification/check-maven.py,code:scripts/check-public-maven.py | A:- | S:VERSION必填且不可变，按历史版本选择模块与字节码限制；trap保存原退出状态和失败证据，不把metadata成功当消费者运行
+ci-repositories.gradle[FV7T]: F:配置CI受控仓库、DNS有界重试和可选构建缓存 | R:code:scripts/ci-java.security | A:- | S:Eazytec仅承载指定定制Kotlin；所有测试强制真实执行，DNS重试不能成为测试重试
+test-check-maven.py[TV7S]: F:以临时publication验证Maven完整性、意外模块、JVM与Android字节码上限和损坏ZIP拒绝 | R:code:verification/check-maven.py | A:CheckerTest | S:假制品用于检查器回归，不证明真实组件发布或消费
+test-check-public-maven.py[TV7T]: F:离线Mock匿名HTTP验证Tag身份、坐标配对、摘要、ZIP CRC与sidecar缺失证据 | R:code:scripts/check-public-maven.py | A:main | S:错误摘要不能产生成功proof，缺高阶sidecar保持显式记录
+test-ios-sdk.sh[TV7T]: F:先运行厂商替身行为测试再静态链接编译真实中性与Bugly/Umeng Pod | R:code:ios-sdk/tests/run.sh,code:GYDiagnosticsSdk.podspec | A:- | S:真实Pod编译与替身测试证据独立，不启动真实供应商SDK
+test-jitpack-metadata.py[TV7T]: F:回归metadata归一化幂等、空资源边界、错误目标零写入和校验和刷新 | R:code:jitpack-metadata.py | A:PublicationContracts | S:零字节实体资源仍视为非空发布，不能删对应variant
+verify-ohos-sdk.py[TV8T]: F:核验唯一HAR的安全归档、纯ArkTS内容、精确版本依赖和源码字节并输出摘要 | R:code:scripts/build-ohos-sdk.sh | A:- | S:拒绝链接/重复路径与额外原生产物；metadata要求兼容SDK22和一致LICENSE，验证不等于上传或设备运行
+verify-tagged-ios-sdk.rb[TV9S]: F:按不可变Tag远程消费四个Pod与SwiftPM并核对下载源码、锁文件和实际编译证据 | R:code:GYDiagnosticsNative.podspec,code:verification-consumer/ios-native/Package.swift | A:TaggedPodValidator | S:正式运行要求HEAD等于准确Tag；不能静默跳过编译或用本地path代替远端，check-only仅验证元数据合同，不是公开编译通过
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/tests/===
+test_jitpack_install.py[TV8S]: F:以离线冻结归档回归JitPack安装身份摘要、双目的地提取和目录逃逸拒绝 | R:code:jitpack-install.sh | A:JitPackInstallTest | S:损坏receipt/摘要、链接/重复成员和非法路径必须在提取前失败，不能留下成功目的地
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/===
+SwiftConsumer.swift[TO7T]: F:通过KLIB导出Framework验证Swift创建Store、MetricKit回调与冻结分块读取和确认合同 | R:code:verification-consumer/build.gradle.kts | A:makeVerifiedRecorder,makeVerifiedStore,makeNotifyingRecorder,readFrozenFile | S:不启动系统采集；读取失败关闭reader并抛出，不确认或删除原批次
+build.gradle.kts[FV8T]: F:以远端固定版本构建四端消费者并按历史API启用网络、闭环、供应商和R8验证 | R:code:verification-consumer/settings.gradle.kts | A:- | S:历史rc按能力选择源集；供应商none/单实现只验证SPI不初始化SDK，不能把本地源码替换当远程消费
+gradle.properties[FV4T]: F:限制独立消费者Gradle堆2G、单worker并启用AndroidX | R:code:verification-consumer/build.gradle.kts | A:- | S:-
+settings.gradle.kts[FV7T]: F:将诊断坐标排他解析到指定远端Maven并按版本/开关登记R8消费者 | R:code:verification-consumer/build.gradle.kts | A:- | S:禁止项目仓库，默认JitPack而非includeBuild；旧rc不启用未发布供应商入口
+verify-r8.py[TV8T]: F:检查真实压缩APK的SPI描述、DEX和mapping中供应商实现完整保名 | R:code:verification-consumer/r8-app/build.gradle.kts | A:verify,self_test | S:none必须零工厂，其余恰好一个匹配供应商；合成self-test仅证明检查器拒绝能力，不是R8或SDK执行证据
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/ios-native/===
+Package.swift[FV7T]: F:声明最低iOS14的真实Native消费者且精确依赖诊断1.0.7 | R:code:verification-consumer/ios-native/Sources/NativeConsumer.swift | A:DiagnosticsNativeConsumer | S:发布校验仅在隔离副本替换准确Tag，不能改成本地path依赖
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/ios-native/Sources/===
+NativeConsumer.swift[TO6T]: F:持有真实SwiftPM导出的单一采集器并向宿主暴露启停 | R:code:ios-support/GYDiagnosticCollector.swift | A:NativeConsumer,start,stop | S:由宿主注入Library根，诊断放独立SkillCureDiagnostics子目录
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/r8-app/===
+build.gradle.kts[FV8T]: F:构建Java17开启R8的真实Android发布消费者并调用APK与mapping检查 | R:code:verification-consumer/verify-r8.py | A:verifyR8Release | S:精确指定远端版本和零或单供应商；仅编译成功不能代替压缩APK的SPI存活验证
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/r8-app/src/main/===
+AndroidManifest.xml[FV5T]: F:登记R8消费者Application入口 | R:code:verification-consumer/r8-app/src/main/java/io/github/gycrosskit/diagnostics/consumer/r8/R8Application.java | A:- | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/r8-app/src/main/java/io/github/gycrosskit/diagnostics/consumer/r8/===
+R8Application.java[TO7T]: F:令正式SPI工厂在压缩图中可达并按构建供应商条件发现实现 | R:code:verification-consumer/r8-app/build.gradle.kts | A:R8Application,onCreate | S:不调用initialize且不启动任何供应商SDK
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/androidMain/kotlin/===
+AndroidConsumer.kt[TO6T]: F:编译检查Android Store、崩溃记录、ANR监控与历史摘要公共入口 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AndroidAnrMonitor.kt | A:androidStore,androidRecorder,androidAnrStore,androidAnrMonitor,androidAnrSummary,androidFileAnrStore | S:是否在Debug/QA安装监控由宿主决定
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/androidUnitTest/kotlin/===
+BoundedReportWriterConsumerTest.kt[TO7T]: F:以消费者公共API回归宿主崩溃格式UTF8预算、自定义截断标记与完整文本 | R:code:diagnostics-core/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/BoundedReportWriter.kt | A:BoundedReportWriterConsumerTest | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/closureCommonMain/kotlin/===
+ClosureConsumer.kt[TO6T]: F:编译验证iOS报告解析、网络Store和已冻结旧日志迁移及文件快照入口 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticStore.kt | A:parseIosPayload,networkStore,legacyStore,snapshot | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/closureNotificationMain/kotlin/===
+NotificationConsumer.kt[TM6T]: F:编译验证钉钉客户端构造和成功响应解码 | R:code:diagnostics-dingtalk/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/dingtalk/DingTalkWebhookClient.kt | A:notificationTransport,decodeWebhookFixture | S:仅链接类型检查，不调用send
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/commonMain/kotlin/===
+Consumer.kt[TO7T]: F:以远端公共API写日志报告、导出tar或逐文件上传并在完成后确认批次 | R:code:verification-consumer/src/jvmTest/kotlin/ConsumerTest.kt | A:exportDiagnostics,uploadFiles | S:上传失败不确认批次，reader与Store均finally关闭；删除已导出数据不删除导出tar
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/fileChannelCommonMain/kotlin/===
+FileChannelConsumer.kt[TO6T]: F:从发布Ktor适配读取冻结批次文件并等待通道完成 | R:code:verification-consumer/src/fileChannelCommonTest/kotlin/FileChannelConsumerTest.kt | A:readPublishedFile | S:必须等待awaitComplete并确认closed/complete，读取本身不确认批次
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/fileChannelCommonTest/kotlin/===
+FileChannelConsumerTest.kt[TO7T]: F:回归远程文件通道关闭与读完后批次仍待确认的合同 | R:code:verification-consumer/src/fileChannelCommonMain/kotlin/FileChannelConsumer.kt | A:FileChannelConsumerTest | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/headerPolicyCommonMain/kotlin/===
+HeaderPolicyConsumer.kt[TS6T]: F:编译验证远程NetworkCapture正文和头部自定义脱敏API | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/NetworkCapture.kt | A:configurableNetworkCapture | S:只编译回调不请求网络或输出真实凭据，UserSig忽略大小写删除
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/iosMain/kotlin/===
+IosConsumer.kt[TO5T]: F:编译验证iOS默认诊断Store的可抛异常入口 | R:code:diagnostics-core/src/iosMain/kotlin/io/github/gycrosskit/diagnostics/IosDiagnosticStore.kt | A:iosStore | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/jvmTest/kotlin/===
+ConsumerTest.kt[TO7T]: F:以系统tar工具验证远程API导出的归档实际可读且含日志和系统报告 | R:code:verification-consumer/src/commonMain/kotlin/Consumer.kt | A:ConsumerTest | S:需要真实执行tar，不只验证文件后缀或编译
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/nativeHistoryAndroidMain/kotlin/===
+NativeCrashConsumer.kt[TO6T]: F:编译验证AndroidNativeCrashCollector远程公开构造入口 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/AndroidNativeCrashCollector.kt | A:androidNativeCrashCollector | S:启动关闭及上传由宿主显式控制
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/networkCommonMain/kotlin/===
+NetworkConsumer.kt[TN6T]: F:编译验证共享Ktor插件安装和正文JSON脱敏接线 | R:code:diagnostics-ktor/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/ktor/DiagnosticsKtor.kt | A:networkDiagnostics | S:不发送网络请求，原生与Kuikly共用无UI接线
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/networkJvmMain/kotlin/===
+OkHttpConsumer.kt[TN6T]: F:构造内存OkHttp客户端验证远程拦截器公共API及传递依赖 | R:code:diagnostics-okhttp/src/jvmSharedMain/kotlin/io/github/gycrosskit/diagnostics/okhttp/NetworkDiagnosticsInterceptor.kt | A:okhttpDiagnostics | S:仅构造不发送请求
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/ohosArm64Main/kotlin/===
+OhosConsumer.kt[TO5T]: F:编译验证鸿蒙崩溃记录器远程公开构造入口 | R:code:diagnostics-core/src/ohosArm64Main/kotlin/io/github/gycrosskit/diagnostics/OhosCrashRecorder.kt | A:ohosRecorder | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/sdkAndroidMain/kotlin/===
+SdkAndroidConsumer.kt[TE6T]: F:编译验证Android已安装供应商工厂发现入口并延迟实际调用 | R:code:diagnostics-core/src/androidMain/kotlin/io/github/gycrosskit/diagnostics/sdk/AndroidDiagnosticSdkFactory.kt | A:installedDiagnosticFactory | S:真实宿主须在持久化隐私授权后调用
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/sdkAndroidUnitTest/kotlin/===
+SdkSpiConsumerTest.kt[TE7T]: F:以ServiceLoader验证远程none或单供应商恰好注册零或一个工厂 | R:code:verification-consumer/build.gradle.kts | A:SdkSpiConsumerTest | S:仅发现SPI，不初始化供应商SDK
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/sdkCommonMain/kotlin/===
+SdkConsumer.kt[TO6T]: F:编译验证中性SDK默认本地模式和注入bridge的Runtime构造 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkRuntime.kt | A:sdkDefaultIsLocalOnly,createSdkRuntime | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/snapshotCommonMain/kotlin/===
+SnapshotConsumer.kt[TO6T]: F:从远程Store打开当前稳定快照并导出文本及关闭句柄 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/DiagnosticFiles.kt | A:exportPublishedSnapshot | S:-
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification-consumer/src/snapshotCommonTest/kotlin/===
+SnapshotConsumerTest.kt[TO8T]: F:回归已发布快照在轮转与批次确认后仍保留原字节且不吞新报告 | R:code:verification-consumer/src/snapshotCommonMain/kotlin/SnapshotConsumer.kt | A:SnapshotConsumerTest | S:冻结快照与当前批次生命周期独立，close释放后才清理测试目录
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification/===
+check-maven.py[TV9S]: F:核验Maven完整publication坐标、POM许可、variant引用、摘要sidecar和JVM/Android字节码 | R:code:scripts/archive-prebuilt.sh,code:scripts/test-check-maven.py | A:- | S:SNAPSHOT按元数据解析当前时间戳；模块集合必须精确且无重复，嵌套AAR库同样受Java上限约束，源码编译不能代替真实发布字节检查
+kotlin_artifact.py[TV6T]: F:优先从Gradle缓存或项目构建目录提供固定Kotlin测试工具依赖 | R:code:verification/test_ohos_diagnostics_bridge.py | A:artifact | S:缺失依赖默认失败，仅显式resolve-dependencies才下载，不把下载当测试运行
+ohos-sdk.cjs[TO9M]: F:转译执行真实ArkTS Runtime、Module和厂商适配并回归隐私、冻结配置、并发失败、生命周期与页替换 | R:code:ohos-sdk/core/src/main/ets/DiagnosticSdkRuntime.ets,code:ohos-sdk/core/src/main/ets/DiagnosticSdkModule.ets | A:fixture,verify | S:只替换平台和供应商且不上传；显式boolean授权前零厂商调用，友盟只注册InternalPlugin+ApmPlugin并拒绝SourcePlugin；替身不证明厂商上报或设备运行
+test_ohos_diagnostics_bridge.py[TO8T]: F:用固定Kotlin/JVM工具编译真实OHOS桥和transport替身并执行协程契约回归 | R:code:verification/kotlin_artifact.py,code:verification/fixtures/diagnostics-bridge/DiagnosticsBridgeMain.kt | A:main | S:默认只用已解析依赖，需显式开关补下载；真实桥源码测试不等于OHOS设备运行
+test_ohos_sdk_archive.py[TV7T]: F:以合成HAR回归准确源码许可、API22依赖和禁止嵌入Kotlin运行时的检查 | R:code:scripts/verify-ohos-sdk.py | A:HarInventoryTest | S:合成归档仅验证检查器，不是Hvigor编译证据
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification/ci/===
+test_cache_contract.py[TV8M]: F:从固定可信CI源读取实际步骤并回归缓存、R8按SHA隔离、metadata恢复和Native独立选版合同 | R:code:scripts/ci-metadata-retry.py,code:scripts/ci-repositories.gradle | A:- | S:CI_AUTOMATION_ROOT必填，命令记录器替代编译；11类失败中仅准确Eazytec TCP超时有界重试，保留原失败日志，不重试编译测试
+
+===/Users/guoyang/.codex/worktrees/aoci-diagnostics/diagnostics/verification/fixtures/diagnostics-bridge/===
+BridgeManager.kt[TE4T]: F:为桥接编译测试提供当前pageId的最小Kuikly管理器替身 | R:code:verification/fixtures/diagnostics-bridge/DiagnosticSdk.kt | A:BridgeManager | S:-
+DiagnosticSdk.kt[TE5T]: F:为桥接测试提供中性供应商常量、配置及初始化日志接口替身 | R:code:diagnostics-core/src/commonMain/kotlin/io/github/gycrosskit/diagnostics/sdk/DiagnosticSdkConfiguration.kt | A:DiagnosticSdkProvider,DiagnosticSdkConfiguration,DiagnosticSdkBridge | S:替身不等于生产SDK初始化或隐私行为证据
+DiagnosticsBridgeMain.kt[TO8S]: F:运行真实OHOS Kotlin桥并回归提前配置、Renderer串行、64日志队列、页面切换取消和回执清理 | R:code:verification/test_ohos_diagnostics_bridge.py | A:main | S:页面销毁不得取消进程SDK初始化；同步回执及原生抛错仍要释放callback，不把替身transport当真机验收
+GlobalFunctions.kt[TE4T]: F:为真实桥的callback引用预测提供最小Kuikly全局函数替身 | R:code:verification/fixtures/diagnostics-bridge/Module.kt | A:GlobalFunctions | S:-
+JSONObject.kt[TE4T]: F:以进程对象表模拟桥接JSON字段读取与字符串传输 | R:code:verification/fixtures/diagnostics-bridge/Module.kt | A:JSONObject | S:fixture序列化不是标准JSON或生产解析器
+Module.kt[TE7T]: F:以强制Renderer线程和inject状态的Module替身记录原生调用、配置与callback生命周期 | R:code:verification/fixtures/diagnostics-bridge/Scheduler.kt | A:Module,Transport,ReturnValue,CallbackRef | S:支持创建引用后同步抛错和同步ready以暴露泄漏；伪配置只用于测试不能作为真实凭据
+Scheduler.kt[TE6T]: F:以可排空页面队列模拟Kuikly Renderer调度与关闭标记 | R:code:verification/fixtures/diagnostics-bridge/DiagnosticsBridgeMain.kt | A:KuiklyContextScheduler | S:独立于Main调度推进才能检验队列背压与跨线程清理
